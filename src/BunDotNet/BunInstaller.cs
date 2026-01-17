@@ -69,13 +69,41 @@ public static class BunInstaller
         return BunVersion.Parse(tag)!;
     }
 
+    public record DownloadProgress(long Read, long? Total);
+
+    private static async Task DownloadWithProgressAsync(
+        string url,
+        Stream destinationStream,
+        Action<DownloadProgress>? onProgress,
+        CancellationToken cancellationToken
+    )
+    {
+        using var client = new HttpClient();
+        using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var totalBytes = response.Content.Headers.ContentLength;
+        await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var buffer = new byte[81920];
+        long totalBytesRead = 0;
+        int bytesRead;
+        while ((bytesRead = await contentStream.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            await destinationStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+            totalBytesRead += bytesRead;
+            onProgress?.Invoke(new DownloadProgress(totalBytesRead, totalBytes));
+        }
+
+        destinationStream.Seek(0, SeekOrigin.Begin);
+    }
+
     /// <summary>
     /// Important: The caller must acquire the installation lock before calling this method.
     /// </summary>
     private static async Task<BunRuntime> DownloadAndInstallAsync(
         BunVersion version,
         BunInstallDirectory directory,
-        CancellationToken cancellationToken
+        Action<DownloadProgress>? onProgress = null,
+        CancellationToken cancellationToken = default
     )
     {
         // Check if the requested version was installed while waiting for the lock
@@ -88,11 +116,8 @@ public static class BunInstaller
 
         // Download Bun archive
         var url = DownloadUrls.GetBunDownloadUrl(version);
-        using var client = new HttpClient();
-        var response = await client.GetAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        var archiveBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        await using var archiveStream = new MemoryStream(archiveBytes);
+        await using var archiveStream = new MemoryStream();
+        await DownloadWithProgressAsync(url, archiveStream, onProgress, cancellationToken);
 
         // Find bun executable in the archive
         await using var zipArchive = new ZipArchive(archiveStream, ZipArchiveMode.Read);
@@ -143,6 +168,7 @@ public static class BunInstaller
     /// </summary>
     /// <param name="version">The version of Bun to install. If null, the latest version will be used.</param>
     /// <param name="path">The path to install Bun to. If null, the default installation path will be used.</param>
+    /// <param name="onProgress">A callback to report download progress.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The installed Bun runtime.</returns>
     /// <remarks>
@@ -151,6 +177,7 @@ public static class BunInstaller
     public static async Task<BunRuntime> InstallAsync(
         BunVersion? version = null,
         string? path = null,
+        Action<DownloadProgress>? onProgress = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -176,19 +203,24 @@ public static class BunInstaller
 
         // Try to install the requested version
         using var @lock = InstallLock.Acquire(directory);
-        return await DownloadAndInstallAsync(version, directory, cancellationToken);
+        return await DownloadAndInstallAsync(version, directory, onProgress, cancellationToken);
     }
 
     /// <summary>
     /// Upgrades Bun to the latest version.
     /// </summary>
     /// <param name="path">The path to the Bun installation. If null, the default installation path will be used.</param>
+    /// <param name="onProgress">A callback to report download progress.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    public static async Task UpgradeAsync(string? path = null, CancellationToken cancellationToken = default)
+    public static async Task<BunRuntime> UpgradeAsync(
+        string? path = null,
+        Action<DownloadProgress>? onProgress = null,
+        CancellationToken cancellationToken = default
+    )
     {
         BunInstallDirectory.Parse(path);
         var latestVersion = await GetLatestVersionAsync(cancellationToken);
-        await InstallAsync(latestVersion, path, cancellationToken);
+        return await InstallAsync(latestVersion, path, onProgress, cancellationToken);
     }
 
     /// <summary>

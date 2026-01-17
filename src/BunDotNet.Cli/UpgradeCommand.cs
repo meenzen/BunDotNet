@@ -1,6 +1,7 @@
-using Spectre.Console.Cli;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using Spectre.Console;
+using Spectre.Console.Cli;
 
 namespace BunDotNet.Cli;
 
@@ -16,7 +17,10 @@ public class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
         CancellationToken cancellationToken
     )
     {
-        await BunInstaller.UpgradeAsync(settings.Path, cancellationToken);
+        var runtime = await ProgressBar.RunAsync(onProgress =>
+            BunInstaller.UpgradeAsync(settings.Path, onProgress, cancellationToken)
+        );
+        AnsiConsole.MarkupLine($"[green]Bun has been upgraded to version {runtime.Metadata.Version}.[/]");
         return 0;
     }
 }

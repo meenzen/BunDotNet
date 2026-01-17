@@ -1,6 +1,6 @@
+using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using System.ComponentModel;
 
 namespace BunDotNet.Cli;
 
@@ -37,13 +37,20 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
         CancellationToken cancellationToken
     )
     {
+        AnsiConsole.Write(new FigletText("BunDotNet").Color(Color.DarkCyan));
+
         if (context.Remaining.Raw.Any() && context.Remaining.Raw[0] == "upgrade")
         {
             Console.WriteLine("The 'bun upgrade' command is not supported when using the BunDotNet wrapper.");
             return 1;
         }
 
-        var runtime = await BunInstaller.InstallAsync(version: _version, path: settings.Path, cancellationToken);
+        var runtime = await ProgressBar.RunAsync(onProgress =>
+            BunInstaller.InstallAsync(version: _version, path: settings.Path, onProgress, cancellationToken)
+        );
+        AnsiConsole.MarkupLine($"[green]Wrapper: Executing Bun {runtime.Metadata.Version}[/]");
+        AnsiConsole.WriteLine();
+
         await runtime.RunAsync(
             args: context.Remaining.Raw.ToArray(),
             workingDirectory: Environment.CurrentDirectory,
