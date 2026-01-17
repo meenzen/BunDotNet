@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BunDotNet.Cli/BunDotNet.Cli.csproj" />
+    <Project Path="src/BunDotNet/BunDotNet.csproj" />
+  </Folder>
+</Solution>
