@@ -1,4 +1,5 @@
-﻿using BunDotNet.Cli.Features.Cleanup;
+﻿using System.Globalization;
+using BunDotNet.Cli.Features.Cleanup;
 using BunDotNet.Cli.Features.Upgrade;
 using BunDotNet.Cli.Features.Versions;
 using BunDotNet.Cli.Features.Wrapper;
@@ -7,6 +8,9 @@ using Spectre.Console.Cli;
 var app = new CommandApp();
 app.Configure(config =>
 {
+    config.SetApplicationCulture(CultureInfo.InvariantCulture);
+    config.SetApplicationVersion(ThisAssembly.AssemblyInformationalVersion);
+
     config.AddCommand<WrapperCommand>("wrapper");
     config.AddCommand<UpgradeCommand>("upgrade");
     config.AddCommand<VersionsCommand>("versions");

@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Description>A .NET CLI tool wrapper for the Bun JavaScript runtime.</Description>
   </PropertyGroup>
   <PropertyGroup>
     <PackAsTool>true</PackAsTool>
@@ -17,5 +18,8 @@
   <ItemGroup>
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Spectre.Console.Cli" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BunDotNet\BunDotNet.csproj" />
   </ItemGroup>
 </Project>
