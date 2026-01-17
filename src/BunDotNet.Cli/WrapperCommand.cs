@@ -1,8 +1,8 @@
-using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using System.ComponentModel;
 
-namespace BunDotNet.Cli.Features.Wrapper;
+namespace BunDotNet.Cli;
 
 [Description("Sets up Bun and ececutes the specified command.")]
 public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>

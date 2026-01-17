@@ -1,11 +1,10 @@
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
-using BunDotNet.Cli.Features.Wrapper;
 using Humanizer;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 
-namespace BunDotNet.Cli.Features.Cleanup;
+namespace BunDotNet.Cli;
 
 [Description("Removes all Bun versions except the latest one.")]
 public class CleanupCommand : AsyncCommand<CleanupCommand.Settings>

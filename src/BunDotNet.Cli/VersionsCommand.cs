@@ -1,10 +1,9 @@
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
-using BunDotNet.Cli.Features.Wrapper;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 
-namespace BunDotNet.Cli.Features.Versions;
+namespace BunDotNet.Cli;
 
 [Description("Lists installed Bun versions.")]
 public class VersionsCommand : AsyncCommand<VersionsCommand.Settings>

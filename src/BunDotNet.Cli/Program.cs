@@ -1,8 +1,5 @@
 ﻿using System.Globalization;
-using BunDotNet.Cli.Features.Cleanup;
-using BunDotNet.Cli.Features.Upgrade;
-using BunDotNet.Cli.Features.Versions;
-using BunDotNet.Cli.Features.Wrapper;
+using BunDotNet.Cli;
 using Spectre.Console.Cli;
 
 var app = new CommandApp();

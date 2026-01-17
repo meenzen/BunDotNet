@@ -1,7 +1,7 @@
-using System.ComponentModel;
 using Spectre.Console.Cli;
+using System.ComponentModel;
 
-namespace BunDotNet.Cli.Features.Wrapper;
+namespace BunDotNet.Cli;
 
 public class PathSettings : CommandSettings
 {

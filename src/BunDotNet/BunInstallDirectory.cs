@@ -31,16 +31,17 @@ public class BunInstallDirectory
 
 public static class BunInstallDirectoryExtensions
 {
-    public static string GetVersionDirectory(this BunInstallDirectory installDirectory, string hash) =>
-        Path.Combine(installDirectory.Full, hash);
-
-    public static string GetExecutablePath(this BunInstallDirectory installDirectory, string hash)
+    extension(BunInstallDirectory installDirectory)
     {
-        var versionDirectory = installDirectory.GetVersionDirectory(hash);
-        var executableName = BunInstaller.ExeName;
-        return Path.Combine(versionDirectory, executableName);
-    }
+        public string GetVersionDirectory(string hash) => Path.Combine(installDirectory.Full, hash);
 
-    public static string GetMetadataJsonPath(this BunInstallDirectory installDirectory) =>
-        Path.Combine(installDirectory.Full, "metadata.json");
+        public string GetExecutablePath(string hash)
+        {
+            var versionDirectory = installDirectory.GetVersionDirectory(hash);
+            var executableName = BunInstaller.ExeName;
+            return Path.Combine(versionDirectory, executableName);
+        }
+
+        public string GetMetadataJsonPath() => Path.Combine(installDirectory.Full, "metadata.json");
+    }
 }

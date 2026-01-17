@@ -1,9 +1,8 @@
+using Spectre.Console.Cli;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using BunDotNet.Cli.Features.Wrapper;
-using Spectre.Console.Cli;
 
-namespace BunDotNet.Cli.Features.Upgrade;
+namespace BunDotNet.Cli;
 
 [Description("Upgrades Bun to the latest version.")]
 public class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
