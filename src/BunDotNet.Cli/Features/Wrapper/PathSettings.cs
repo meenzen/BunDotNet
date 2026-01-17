@@ -3,9 +3,9 @@ using Spectre.Console.Cli;
 
 namespace BunDotNet.Cli.Features.Wrapper;
 
-public class DirectorySettings : CommandSettings
+public class PathSettings : CommandSettings
 {
-    [CommandOption("-d|--directory")]
+    [CommandOption("-p|--path")]
     [Description("The Bun installation directory.")]
-    public string? Directory { get; init; }
+    public string? Path { get; init; }
 }
