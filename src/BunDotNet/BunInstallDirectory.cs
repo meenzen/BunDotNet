@@ -12,6 +12,14 @@ public class BunInstallDirectory
         Directory.CreateDirectory(Base);
         Full = Path.Combine(Base, "BunDotNet");
         Directory.CreateDirectory(Full);
+
+        // Ensure git ignores the installation directory. This makes it easier to install Bun into a repository without
+        // committing the installation files.
+        var gitignore = Path.Combine(Full, ".gitignore");
+        if (!File.Exists(gitignore))
+        {
+            File.WriteAllText(gitignore, "*\n");
+        }
     }
 
     public static BunInstallDirectory Default =>
