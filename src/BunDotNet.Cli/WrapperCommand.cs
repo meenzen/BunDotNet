@@ -5,7 +5,7 @@ using Spectre.Console.Cli;
 
 namespace BunDotNet.Cli;
 
-[Description("Sets up Bun and ececutes the specified command.")]
+[Description("Sets up Bun and executes the specified command.")]
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
 {
