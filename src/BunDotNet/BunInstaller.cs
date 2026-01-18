@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Text.Json;
 
@@ -25,7 +26,18 @@ public static class BunInstaller
     {
         public required DateTimeOffset CreatedAt { get; init; }
         public required DateTimeOffset UpdatedAt { get; set; }
+        public DateTimeOffset? UpdateCheckedAt { get; set; }
         public required List<VersionMetadata> Versions { get; set; }
+
+        public bool ShouldCheckForUpdate()
+        {
+            if (UpdateCheckedAt is null)
+            {
+                return true;
+            }
+
+            return UpdateCheckedAt.Value.AddHours(24) < DateTimeOffset.UtcNow;
+        }
     }
 
     private static async Task SaveMetadataAsync(BunInstallDirectory directory, InstallMetadata metadata)
@@ -58,7 +70,10 @@ public static class BunInstaller
         return JsonSerializer.Deserialize<InstallMetadata>(json)!;
     }
 
-    private static async Task<BunVersion> GetLatestVersionAsync(CancellationToken cancellationToken)
+    private static async Task<BunVersion> GetLatestVersionAsync(
+        BunInstallDirectory directory,
+        CancellationToken cancellationToken
+    )
     {
         using var gitHub = new GitHubClient();
         var tag = await gitHub.GetLatestReleaseTagAsync(
@@ -66,7 +81,15 @@ public static class BunInstaller
             DownloadUrls.GitHubRepo,
             cancellationToken
         );
-        return BunVersion.Parse(tag)!;
+        var version = BunVersion.Parse(tag)!;
+
+        // save update checked at timestamp
+        using var @lock = InstallLock.Acquire(directory);
+        var metadata = await LoadMetadataAsync(BunInstallDirectory.Default, cancellationToken);
+        metadata.UpdateCheckedAt = DateTimeOffset.UtcNow;
+        await SaveMetadataAsync(BunInstallDirectory.Default, metadata);
+
+        return version;
     }
 
     public record DownloadProgress(long Read, long? Total);
@@ -174,6 +197,7 @@ public static class BunInstaller
     /// <remarks>
     /// This is idempotent, calling this method multiple times with the same arguments will not reinstall Bun.
     /// </remarks>
+    [SuppressMessage("Roslynator", "RCS1075:Avoid empty catch clause that catches System.Exception")]
     public static async Task<BunRuntime> InstallAsync(
         BunVersion? version = null,
         string? path = null,
@@ -184,6 +208,19 @@ public static class BunInstaller
         var directory = BunInstallDirectory.Parse(path);
         var metadata = await LoadMetadataAsync(directory, cancellationToken);
 
+        // If no version is specified, check for updates
+        if (version is null && metadata.ShouldCheckForUpdate())
+        {
+            try
+            {
+                version = await GetLatestVersionAsync(directory, cancellationToken);
+            }
+            catch (Exception)
+            {
+                // Ignore errors during update check. This allows offline usage if a version is already installed.
+            }
+        }
+
         // If no version is specified and there are existing versions, use the latest installed
         if (version is null && metadata.Versions.Count > 0)
         {
@@ -192,7 +229,7 @@ public static class BunInstaller
         }
 
         // If no version is specified, fetch the latest version
-        version ??= await GetLatestVersionAsync(cancellationToken);
+        version ??= await GetLatestVersionAsync(directory, cancellationToken);
 
         // Check if the requested version is already installed
         var existingVersion = metadata.Versions.FirstOrDefault(v => v.Version == version);
@@ -218,8 +255,8 @@ public static class BunInstaller
         CancellationToken cancellationToken = default
     )
     {
-        BunInstallDirectory.Parse(path);
-        var latestVersion = await GetLatestVersionAsync(cancellationToken);
+        var directory = BunInstallDirectory.Parse(path);
+        var latestVersion = await GetLatestVersionAsync(directory, cancellationToken);
         return await InstallAsync(latestVersion, path, onProgress, cancellationToken);
     }
 
@@ -257,6 +294,12 @@ public static class BunInstaller
         }
 
         using var @lock = InstallLock.Acquire(directory);
+        // double-check after acquiring the lock
+        metadata = await LoadMetadataAsync(directory, cancellationToken);
+        if (metadata.Versions.Count <= 1)
+        {
+            return new BunCleanupResult { RemovedVersions = [] };
+        }
 
         var versions = metadata.Versions.OrderByDescending(version => version.Version).ToList();
         var versionToKeep = versions[0];
