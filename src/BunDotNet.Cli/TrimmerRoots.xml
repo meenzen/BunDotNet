@@ -1,23 +1,4 @@
 <linker>
-  <assembly fullname="BunDotNet.Cli">
-    <type fullname="BunDotNet.Cli.WrapperCommand" preserve="all">
-      <type fullname="Settings" preserve="all" />
-    </type>
-    <type fullname="BunDotNet.Cli.UpgradeCommand" preserve="all">
-      <type fullname="Settings" preserve="all" />
-    </type>
-    <type fullname="BunDotNet.Cli.VersionsCommand" preserve="all">
-      <type fullname="Settings" preserve="all" />
-    </type>
-    <type fullname="BunDotNet.Cli.CleanupCommand" preserve="all">
-      <type fullname="Settings" preserve="all" />
-    </type>
-    <type fullname="BunDotNet.Cli.PathSettings" preserve="all" />
-  </assembly>
-  <assembly fullname="Spectre.Console.Cli">
-    <type fullname="Spectre.Console.Cli.EmptyCommandSettings" preserve="all" />
-    <type fullname="Spectre.Console.Cli.CommandSettings" preserve="all" />
-    <type fullname="Spectre.Console.Cli.CommandApp" preserve="all" />
-    <type fullname="Spectre.Console.Cli.CommandApp+Configurator" preserve="all" />
-  </assembly>
+  <assembly fullname="BunDotNet.Cli" preserve="all" />
+  <assembly fullname="BunDotNet" preserve="all" />
 </linker>
