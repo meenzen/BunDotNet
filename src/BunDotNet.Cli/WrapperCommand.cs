@@ -13,6 +13,11 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
         [Description("The Bun version to use.")]
         [DefaultValue("latest")]
         public string Version { get; init; } = "latest";
+
+        [CommandOption("--silent")]
+        [Description("Less verbose output.")]
+        [DefaultValue(false)]
+        public bool Silent { get; init; }
     }
 
     private BunVersion? _version;
@@ -37,19 +42,37 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
         CancellationToken cancellationToken
     )
     {
-        AnsiConsole.Write(new FigletText("BunDotNet").Color(Color.DarkCyan));
+        if (!settings.Silent)
+        {
+            AnsiConsole.Write(new FigletText("BunDotNet").Color(Color.DarkCyan));
+        }
 
-        if (context.Remaining.Raw.Any() && context.Remaining.Raw[0] == "upgrade")
+        if (
+            context.Remaining.Raw.Any()
+            && context.Remaining.Raw[0].Equals("upgrade", StringComparison.InvariantCultureIgnoreCase)
+        )
         {
             Console.WriteLine("The 'bun upgrade' command is not supported when using the BunDotNet wrapper.");
             return 1;
         }
 
-        var runtime = await ProgressBar.RunAsync(onProgress =>
-            BunInstaller.InstallAsync(version: _version, path: settings.Path, onProgress, cancellationToken)
-        );
-        AnsiConsole.MarkupLine($"[green]Wrapper: Executing Bun {runtime.Metadata.Version}[/]");
-        AnsiConsole.WriteLine();
+        var runtime = settings.Silent switch
+        {
+            true => await BunInstaller.InstallAsync(
+                version: _version,
+                path: settings.Path,
+                cancellationToken: cancellationToken
+            ),
+            false => await ProgressBar.RunAsync(onProgress =>
+                BunInstaller.InstallAsync(version: _version, path: settings.Path, onProgress, cancellationToken)
+            ),
+        };
+
+        if (!settings.Silent)
+        {
+            AnsiConsole.MarkupLine($"[green]Wrapper: Executing Bun {runtime.Metadata.Version}[/]");
+            AnsiConsole.WriteLine();
+        }
 
         await runtime.RunAsync(
             args: context.Remaining.Raw.ToArray(),
