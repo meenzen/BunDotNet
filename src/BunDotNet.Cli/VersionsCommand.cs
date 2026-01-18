@@ -6,9 +6,11 @@ using System.Diagnostics.CodeAnalysis;
 namespace BunDotNet.Cli;
 
 [Description("Lists installed Bun versions.")]
+[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public class VersionsCommand : AsyncCommand<VersionsCommand.Settings>
 {
     [SuppressMessage("Minor Code Smell", "S2094:Classes should not be empty")]
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
     public class Settings : PathSettings { }
 
     public override async Task<int> ExecuteAsync(

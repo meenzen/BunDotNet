@@ -6,9 +6,11 @@ using Spectre.Console.Cli;
 namespace BunDotNet.Cli;
 
 [Description("Upgrades Bun to the latest version.")]
+[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
 {
     [SuppressMessage("Minor Code Smell", "S2094:Classes should not be empty")]
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
     public class Settings : PathSettings { }
 
     public override async Task<int> ExecuteAsync(

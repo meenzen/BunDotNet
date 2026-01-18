@@ -1,12 +1,15 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace BunDotNet.Cli;
 
 [Description("Sets up Bun and ececutes the specified command.")]
+[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
 {
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
     public class Settings : PathSettings
     {
         [CommandOption("-v|--version")]

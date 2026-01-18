@@ -7,9 +7,11 @@ using System.Diagnostics.CodeAnalysis;
 namespace BunDotNet.Cli;
 
 [Description("Removes all Bun versions except the latest one.")]
+[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public class CleanupCommand : AsyncCommand<CleanupCommand.Settings>
 {
     [SuppressMessage("Minor Code Smell", "S2094:Classes should not be empty")]
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
     public class Settings : PathSettings { }
 
     public override async Task<int> ExecuteAsync(

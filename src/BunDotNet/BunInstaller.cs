@@ -32,7 +32,7 @@ public static class BunInstaller
     {
         var metadataPath = directory.GetMetadataJsonPath();
         metadata.Versions = metadata.Versions.OrderBy(v => v.Version).ToList();
-        var json = JsonSerializer.Serialize(metadata);
+        var json = JsonSerializer.Serialize(metadata, BunJsonSerializerContext.Default.InstallMetadata);
         await File.WriteAllTextAsync(metadataPath, json);
     }
 
@@ -55,7 +55,7 @@ public static class BunInstaller
         }
 
         var json = await File.ReadAllTextAsync(metadataPath, cancellationToken);
-        return JsonSerializer.Deserialize<InstallMetadata>(json)!;
+        return JsonSerializer.Deserialize(json, BunJsonSerializerContext.Default.InstallMetadata)!;
     }
 
     private static async Task<BunVersion> GetLatestVersionAsync(CancellationToken cancellationToken)

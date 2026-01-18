@@ -4,8 +4,24 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Description>A .NET CLI tool wrapper for the Bun JavaScript runtime.</Description>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == ''">
+    <!-- Only generate package when not doing native AOT compilation -->
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <!-- Enable AOT compilation when publishing with a specific runtime identifier -->
+    <PublishAot>true</PublishAot>
+    <!-- Suppress trim warnings from Spectre.Console.Cli -->
+    <IlcTreatWarningsAsErrors>false</IlcTreatWarningsAsErrors>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <!-- Disable aggressive trimming to preserve reflection-based functionality -->
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <!-- Copy all assemblies to avoid trimming issues -->
+    <TrimMode>CopyUsed</TrimMode>
   </PropertyGroup>
   <PropertyGroup>
     <PackAsTool>true</PackAsTool>
@@ -14,6 +30,9 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <ItemGroup>
+    <TrimmerRootDescriptor Include="TrimmerRoots.xml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Humanizer.Core" />
