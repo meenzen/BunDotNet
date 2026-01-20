@@ -40,7 +40,8 @@ public sealed class BunRuntime
     /// Runs Bun with the given arguments and working directory, waiting for it to complete.
     /// </summary>
     /// <exception cref="OperationCanceledException">Thrown if the operation is canceled.</exception>
-    public async Task RunAsync(string[] args, string workingDirectory, CancellationToken cancellationToken = default)
+    /// <returns>The exit code of the Bun process.</returns>
+    public async Task<int> RunAsync(string[] args, string workingDirectory, CancellationToken cancellationToken = default)
     {
         var process = SetupProcess(args, workingDirectory);
         process.Start();
@@ -57,5 +58,7 @@ public sealed class BunRuntime
                 cancellationToken
             );
         }
+
+        return process.ExitCode;
     }
 }

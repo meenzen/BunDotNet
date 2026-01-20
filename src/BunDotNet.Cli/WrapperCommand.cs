@@ -74,11 +74,10 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
             AnsiConsole.WriteLine();
         }
 
-        await runtime.RunAsync(
+        return await runtime.RunAsync(
             args: context.Remaining.Raw.ToArray(),
             workingDirectory: Environment.CurrentDirectory,
             cancellationToken: cancellationToken
         );
-        return 0;
     }
 }
