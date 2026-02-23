@@ -13,15 +13,16 @@ public sealed class BunRuntime
     /// <summary>
     /// Set up a process to run Bun with the given arguments and working directory. It must be started manually.
     /// </summary>
-    public Process SetupProcess(string[] args, string workingDirectory)
+    public Process SetupProcess(string[] args, string workingDirectory, bool headless = false)
     {
         var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = ExecutablePath,
-                RedirectStandardOutput = false,
-                RedirectStandardError = false,
+                RedirectStandardOutput = headless,
+                RedirectStandardError = headless,
+                RedirectStandardInput = headless,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 WorkingDirectory = workingDirectory,
@@ -41,10 +42,24 @@ public sealed class BunRuntime
     /// </summary>
     /// <exception cref="OperationCanceledException">Thrown if the operation is canceled.</exception>
     /// <returns>The exit code of the Bun process.</returns>
-    public async Task<int> RunAsync(string[] args, string workingDirectory, CancellationToken cancellationToken = default)
+    public async Task<int> RunAsync(
+        string[] args,
+        string workingDirectory,
+        bool headless = false,
+        CancellationToken cancellationToken = default
+    )
     {
-        var process = SetupProcess(args, workingDirectory);
+        var process = SetupProcess(args, workingDirectory, headless);
         process.Start();
+        Task? stdoutDrain = null;
+        Task? stderrDrain = null;
+        if (headless)
+        {
+            process.StandardInput.Close();
+            stdoutDrain = process.StandardOutput.BaseStream.CopyToAsync(Stream.Null);
+            stderrDrain = process.StandardError.BaseStream.CopyToAsync(Stream.Null);
+        }
+
         try
         {
             await process.WaitForExitAsync(cancellationToken);
@@ -57,6 +72,13 @@ public sealed class BunRuntime
                 e,
                 cancellationToken
             );
+        }
+        finally
+        {
+            if (stdoutDrain is not null && stderrDrain is not null)
+            {
+                await Task.WhenAll(stdoutDrain, stderrDrain);
+            }
         }
 
         return process.ExitCode;
