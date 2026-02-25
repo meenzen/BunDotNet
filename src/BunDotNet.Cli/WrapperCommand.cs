@@ -42,7 +42,10 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
         CancellationToken cancellationToken
     )
     {
-        if (!settings.Silent)
+        var isNonInteractive = Console.IsInputRedirected || Console.IsOutputRedirected;
+        var effectiveSilent = settings.Silent || isNonInteractive;
+
+        if (!effectiveSilent)
         {
             AnsiConsole.Write(new FigletText("BunDotNet").Color(Color.DarkCyan));
         }
@@ -56,7 +59,7 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
             return 1;
         }
 
-        var runtime = settings.Silent switch
+        var runtime = effectiveSilent switch
         {
             true => await BunInstaller.InstallAsync(
                 version: _version,
@@ -68,7 +71,7 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
             ),
         };
 
-        if (!settings.Silent)
+        if (!effectiveSilent)
         {
             AnsiConsole.MarkupLine($"[green]Wrapper: Executing Bun {runtime.Metadata.Version}[/]");
             AnsiConsole.WriteLine();
@@ -77,7 +80,7 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
         return await runtime.RunAsync(
             args: context.Remaining.Raw.ToArray(),
             workingDirectory: Environment.CurrentDirectory,
-            headless: settings.Silent,
+            headless: effectiveSilent,
             cancellationToken: cancellationToken
         );
     }
