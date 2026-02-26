@@ -8,6 +8,7 @@ internal enum Platform
 {
     WindowsX64,
     WindowsX64Baseline,
+    WindowsArm64,
     LinuxX64,
     LinuxX64Baseline,
     LinuxX64Musl,
@@ -39,6 +40,14 @@ internal static class PlatformExtensions
                     true => Platform.WindowsX64,
                     false => Platform.WindowsX64Baseline,
                 };
+            }
+            else if (
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                && Environment.Is64BitOperatingSystem
+                && RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+            )
+            {
+                platform = Platform.WindowsArm64;
             }
             else if (
                 RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
@@ -108,6 +117,7 @@ internal static class DownloadUrls
     {
         { Platform.WindowsX64, "bun-windows-x64.zip" },
         { Platform.WindowsX64Baseline, "bun-windows-x64-baseline.zip" },
+        { Platform.WindowsArm64, "bun-windows-aarch64.zip" },
         { Platform.LinuxX64, "bun-linux-x64.zip" },
         { Platform.LinuxX64Baseline, "bun-linux-x64-baseline.zip" },
         { Platform.LinuxX64Musl, "bun-linux-x64-musl.zip" },
@@ -118,9 +128,17 @@ internal static class DownloadUrls
         { Platform.MacOsArm64, "bun-darwin-aarch64.zip" },
     };
 
+    private static readonly BunVersion WindowsArm64MinVersion = BunVersion.Parse("1.3.10")!;
+
     internal static string GetBunDownloadUrl(BunVersion version)
     {
         var platform = Platform.Detect();
+
+        if (platform == Platform.WindowsArm64 && version < WindowsArm64MinVersion)
+        {
+            throw new NotSupportedException("Windows ARM64 requires Bun v1.3.10 or later.");
+        }
+
         if (Filenames.TryGetValue(platform, out var filename))
         {
             var tag = version.ToGitTag();
