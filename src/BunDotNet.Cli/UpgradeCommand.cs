@@ -11,7 +11,7 @@ public class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
     [SuppressMessage("Minor Code Smell", "S2094:Classes should not be empty")]
     public class Settings : PathSettings { }
 
-    public override async Task<int> ExecuteAsync(
+    protected override async Task<int> ExecuteAsync(
         CommandContext context,
         Settings settings,
         CancellationToken cancellationToken

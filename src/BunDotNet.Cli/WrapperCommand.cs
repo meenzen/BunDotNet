@@ -22,7 +22,7 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
 
     private BunVersion? _version;
 
-    public override ValidationResult Validate(CommandContext context, Settings settings)
+    protected override ValidationResult Validate(CommandContext context, Settings settings)
     {
         try
         {
@@ -36,7 +36,7 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
         return ValidationResult.Success();
     }
 
-    public override async Task<int> ExecuteAsync(
+    protected override async Task<int> ExecuteAsync(
         CommandContext context,
         Settings settings,
         CancellationToken cancellationToken
