@@ -77,6 +77,7 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
         return await runtime.RunAsync(
             args: context.Remaining.Raw.ToArray(),
             workingDirectory: Environment.CurrentDirectory,
+            headless: settings.Silent,
             cancellationToken: cancellationToken
         );
     }
