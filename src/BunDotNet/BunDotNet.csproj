@@ -10,15 +10,26 @@
     <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
   <!-- Automatically setup Husky.Net, set HUSKY to 0 in CI/CD disable this -->
-  <Target Name="husky" AfterTargets="Restore" Condition="'$(HUSKY)' != 0"
-          Inputs="../../dotnet-tools.json"
-          Outputs="../../.husky/_/install.stamp">
-    <Exec Command="dotnet tool restore"  StandardOutputImportance="Low" StandardErrorImportance="High"/>
-    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High"
-          WorkingDirectory="../../" />
-    <Touch Files="../../.husky/_/install.stamp" AlwaysCreate="true" />
+  <PropertyGroup>
+    <HuskyRoot Condition="'$(HuskyRoot)' == ''">../../</HuskyRoot>
+  </PropertyGroup>
+  <Target
+    Name="Husky"
+    AfterTargets="Restore"
+    Condition="'$(HUSKY)' != 0"
+    Inputs="$(HuskyRoot)dotnet-tools.json"
+    Outputs="$(HuskyRoot).husky/_/install.stamp"
+  >
+    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" />
+    <Exec
+      Command="dotnet husky install"
+      StandardOutputImportance="Low"
+      StandardErrorImportance="High"
+      WorkingDirectory="$(HuskyRoot)"
+    />
+    <Touch Files="$(HuskyRoot).husky/_/install.stamp" AlwaysCreate="true" Condition="Exists('$(HuskyRoot).husky/_')" />
     <ItemGroup>
-      <FileWrites Include="../../.husky/_/install.stamp" />
+      <FileWrites Include="$(HuskyRoot).husky/_/install.stamp" />
     </ItemGroup>
   </Target>
 </Project>
