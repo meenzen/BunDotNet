@@ -166,6 +166,7 @@ public class BunVersionTests
             .That(versions)
             .IsEquivalentTo(
                 [Version(0, 9, 9), Version(1, 2, 0), Version(1, 2, 3), Version(1, 10, 0)],
+                EqualityComparer<BunVersion>.Default,
                 TUnit.Assertions.Enums.CollectionOrdering.Matching
             );
     }
@@ -351,6 +352,7 @@ public class BunVersionTests
             .That(versions)
             .IsEquivalentTo(
                 [Version(1, 3, 6), Version(99, 0, 0), BunVersion.Canary],
+                EqualityComparer<BunVersion>.Default,
                 TUnit.Assertions.Enums.CollectionOrdering.Matching
             );
         await Assert.That(BunVersion.Canary > Version(99, 0, 0)).IsTrue();
@@ -360,11 +362,14 @@ public class BunVersionTests
     [Test]
     public async Task Json_RoundTripsCanaryAndStable()
     {
-        var canary = System.Text.Json.JsonSerializer.Deserialize<BunVersion>(
-            System.Text.Json.JsonSerializer.Serialize(BunVersion.Canary)
+        var typeInfo = BunJsonContext.Default.BunVersion;
+        var canary = System.Text.Json.JsonSerializer.Deserialize(
+            System.Text.Json.JsonSerializer.Serialize(BunVersion.Canary, typeInfo),
+            typeInfo
         );
-        var stable = System.Text.Json.JsonSerializer.Deserialize<BunVersion>(
-            System.Text.Json.JsonSerializer.Serialize(Version(1, 3, 6))
+        var stable = System.Text.Json.JsonSerializer.Deserialize(
+            System.Text.Json.JsonSerializer.Serialize(Version(1, 3, 6), typeInfo),
+            typeInfo
         );
 
         await Assert.That(canary).IsEqualTo(BunVersion.Canary);
@@ -375,7 +380,10 @@ public class BunVersionTests
     public async Task Json_MetadataWithoutCanaryField_IsStable()
     {
         // metadata written by older versions of BunDotNet has no IsCanary property
-        var version = System.Text.Json.JsonSerializer.Deserialize<BunVersion>("""{"Major":1,"Minor":3,"Patch":6}""");
+        var version = System.Text.Json.JsonSerializer.Deserialize(
+            """{"Major":1,"Minor":3,"Patch":6}""",
+            BunJsonContext.Default.BunVersion
+        );
 
         await Assert.That(version).IsEqualTo(Version(1, 3, 6));
         await Assert.That(version!.IsCanary).IsFalse();

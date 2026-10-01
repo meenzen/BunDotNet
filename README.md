@@ -40,7 +40,10 @@ var versions = await BunInstaller.ListVersionsAsync();
 ## CLI Tool Usage
 
 This is a .NET CLI tool that wraps the Bun CLI. It automatically sets up the Bun for you. The only requirement is
-.NET 10.
+the .NET 10 SDK.
+
+The tool is compiled with Native AOT for Linux (glibc and musl), Windows and macOS on x64 and arm64, so it starts
+instantly and does not need the .NET runtime. Other platforms use a framework-dependent fallback that requires .NET 10.
 
 Run a TypeScript or JavaScript file using Bun from the command line:
 
