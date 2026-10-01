@@ -85,9 +85,9 @@ public static class BunInstaller
 
         // save update checked at timestamp
         using var @lock = InstallLock.Acquire(directory);
-        var metadata = await LoadMetadataAsync(BunInstallDirectory.Default, cancellationToken);
+        var metadata = await LoadMetadataAsync(directory, cancellationToken);
         metadata.UpdateCheckedAt = DateTimeOffset.UtcNow;
-        await SaveMetadataAsync(BunInstallDirectory.Default, metadata);
+        await SaveMetadataAsync(directory, metadata);
 
         return version;
     }

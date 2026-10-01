@@ -1,77 +1,44 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
-using System.Text;
-
 namespace BunDotNet;
 
 internal static class InstallLock
 {
+    private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// Acquires an exclusive lock on the installation directory, shared across threads and processes.
+    /// </summary>
+    /// <remarks>
+    /// This uses an exclusively opened lock file instead of a named mutex, because a mutex is owned by the thread
+    /// that acquired it and cannot be released after an await resumes on a different thread.
+    /// </remarks>
     internal static IDisposable Acquire(BunInstallDirectory directory)
     {
-        // derive a stable mutex name from the lock path
-        var hash = directory.GetMetadataJsonPath().Hash();
-        var mutexName = $"{ThisAssembly.AssemblyName}.{hash.Substring(0, 16)}";
-        var timeout = TimeSpan.FromMinutes(5);
+        var lockPath = Path.Combine(directory.Full, ".lock");
+        var deadline = DateTimeOffset.UtcNow + Timeout;
 
-        var mutex = new Mutex(false, mutexName);
-        try
-        {
-            var acquired = false;
-            try
-            {
-                acquired = mutex.WaitOne(timeout);
-            }
-            catch (AbandonedMutexException)
-            {
-                // previous holder crashed — consider lock acquired
-                acquired = true;
-            }
-
-            if (!acquired)
-            {
-                mutex.Dispose();
-                throw new TimeoutException("Timeout acquiring bun install lock");
-            }
-
-            return new InstallLockReleaser(mutex);
-        }
-        catch
+        while (true)
         {
             try
             {
-                mutex.Dispose();
+                return new FileStream(
+                    lockPath,
+                    FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite,
+                    FileShare.None,
+                    bufferSize: 1,
+                    FileOptions.None
+                );
             }
-            catch
+            catch (IOException) when (DateTimeOffset.UtcNow < deadline)
             {
-                // best-effort
+                // the lock is held by another thread or process
+                Thread.Sleep(RetryDelay);
             }
-
-            throw;
-        }
-    }
-}
-
-[SuppressMessage("Major Code Smell", "S3881:\"IDisposable\" should be implemented correctly")]
-internal class InstallLockReleaser(Mutex mutex) : IDisposable
-{
-    public void Dispose()
-    {
-        try
-        {
-            mutex.ReleaseMutex();
-        }
-        catch
-        {
-            // best-effort
-        }
-
-        try
-        {
-            mutex.Dispose();
-        }
-        catch
-        {
-            // best-effort
+            catch (IOException e)
+            {
+                throw new TimeoutException("Timeout acquiring bun install lock", e);
+            }
         }
     }
 }

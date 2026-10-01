@@ -41,7 +41,11 @@ public sealed class BunRuntime
     /// </summary>
     /// <exception cref="OperationCanceledException">Thrown if the operation is canceled.</exception>
     /// <returns>The exit code of the Bun process.</returns>
-    public async Task<int> RunAsync(string[] args, string workingDirectory, CancellationToken cancellationToken = default)
+    public async Task<int> RunAsync(
+        string[] args,
+        string workingDirectory,
+        CancellationToken cancellationToken = default
+    )
     {
         var process = SetupProcess(args, workingDirectory);
         process.Start();

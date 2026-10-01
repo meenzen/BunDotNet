@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace BunDotNet;
 
 public sealed class BunVersion : IComparable<BunVersion>, IComparable, IEquatable<BunVersion>
@@ -41,9 +43,9 @@ public sealed class BunVersion : IComparable<BunVersion>, IComparable, IEquatabl
         }
 
         if (
-            !int.TryParse(parts[0], out var major)
-            || !int.TryParse(parts[1], out var minor)
-            || !int.TryParse(parts[2], out var patch)
+            !TryParsePart(parts[0], out var major)
+            || !TryParsePart(parts[1], out var minor)
+            || !TryParsePart(parts[2], out var patch)
         )
         {
             throw new FormatException("Invalid version format. Major, Minor, and Patch must be integers.");
@@ -56,6 +58,10 @@ public sealed class BunVersion : IComparable<BunVersion>, IComparable, IEquatabl
             Patch = patch,
         };
     }
+
+    // NumberStyles.None rejects signs, whitespace and thousands separators
+    private static bool TryParsePart(string part, out int value) =>
+        int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out value);
 
     public int CompareTo(BunVersion? other)
     {
@@ -101,17 +107,21 @@ public sealed class BunVersion : IComparable<BunVersion>, IComparable, IEquatabl
             : throw new ArgumentException($"Object must be of type {nameof(BunVersion)}");
     }
 
-    public static bool operator <(BunVersion left, BunVersion right) => left.CompareTo(right) < 0;
+    public static bool operator <(BunVersion? left, BunVersion? right) => Compare(left, right) < 0;
 
-    public static bool operator >(BunVersion left, BunVersion right) => left.CompareTo(right) > 0;
+    public static bool operator >(BunVersion? left, BunVersion? right) => Compare(left, right) > 0;
 
-    public static bool operator <=(BunVersion left, BunVersion right) => left.CompareTo(right) <= 0;
+    public static bool operator <=(BunVersion? left, BunVersion? right) => Compare(left, right) <= 0;
 
-    public static bool operator >=(BunVersion left, BunVersion right) => left.CompareTo(right) >= 0;
+    public static bool operator >=(BunVersion? left, BunVersion? right) => Compare(left, right) >= 0;
 
-    public static bool operator ==(BunVersion left, BunVersion right) => left.Equals(right);
+    public static bool operator ==(BunVersion? left, BunVersion? right) => left?.Equals(right) ?? right is null;
 
-    public static bool operator !=(BunVersion left, BunVersion right) => !left.Equals(right);
+    public static bool operator !=(BunVersion? left, BunVersion? right) => !(left == right);
+
+    // null sorts before any version, matching CompareTo
+    private static int Compare(BunVersion? left, BunVersion? right) =>
+        left?.CompareTo(right) ?? (right is null ? 0 : -1);
 
     public override int GetHashCode() => HashCode.Combine(Major, Minor, Patch);
 

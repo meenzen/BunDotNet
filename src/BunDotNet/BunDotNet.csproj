@@ -7,6 +7,9 @@
     <Description>Tools that help integrate Bun, A fast all-in-one JavaScript runtime, into your .NET projects.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="BunDotNet.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
   <!-- Automatically setup Husky.Net, set HUSKY to 0 in CI/CD disable this -->

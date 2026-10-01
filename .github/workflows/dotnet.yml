@@ -12,20 +12,110 @@ on:
 env:
   HUSKY: 0
 
-jobs:
-  build:
+permissions:
+  contents: read
 
-    runs-on: ubuntu-latest
+jobs:
+  test:
+    name: test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-latest
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+          - name: linux-musl-x64
+            os: ubuntu-latest
+            container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+          - name: linux-musl-arm64
+            os: ubuntu-24.04-arm
+            container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+          - name: windows-x64
+            os: windows-latest
+          - name: windows-arm64
+            os: windows-11-arm
+          - name: macos-x64
+            os: macos-15-intel
+          - name: macos-arm64
+            os: macos-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Setup .NET
+        if: ${{ !matrix.container }}
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: 10.0.x
       - name: Restore dependencies
+        if: ${{ !matrix.container }}
         run: dotnet restore
       - name: Build
+        if: ${{ !matrix.container }}
         run: dotnet build --no-restore
+      - name: Unit tests
+        if: ${{ !matrix.container }}
+        run: dotnet test --no-build --project test/BunDotNet.Tests --report-trx --coverage --coverage-output-format cobertura --coverage-output unit.cobertura.xml --results-directory TestResults
+      - name: E2E tests
+        if: ${{ !matrix.container && !cancelled() }}
+        run: dotnet test --no-build --project test/BunDotNet.Tests.EndToEnd --report-trx --coverage --coverage-output-format cobertura --coverage-output e2e.cobertura.xml --results-directory TestResults
+      # JavaScript actions do not run inside Alpine containers, so the musl tests run via docker directly
+      - name: Build and test (${{ matrix.container }})
+        if: ${{ matrix.container }}
+        run: >-
+          docker run --rm -e HUSKY=0 -v "$PWD:/src" -w /src ${{ matrix.container }}
+          sh -c 'apk add --no-cache git libstdc++ libgcc
+          && git config --global --add safe.directory /src
+          && dotnet build
+          && dotnet test --no-build --project test/BunDotNet.Tests --report-trx --coverage --coverage-output-format cobertura --coverage-output unit.cobertura.xml --results-directory TestResults;
+          unit=$?;
+          dotnet test --no-build --project test/BunDotNet.Tests.EndToEnd --report-trx --coverage --coverage-output-format cobertura --coverage-output e2e.cobertura.xml --results-directory TestResults;
+          e2e=$?;
+          [ $unit -eq 0 ] && [ $e2e -eq 0 ]'
+      - name: Upload test results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: (!cancelled())
+        with:
+          name: test-results-${{ matrix.name }}
+          path: |
+            TestResults/*.trx
+            TestResults/*.cobertura.xml
+
+  report:
+    needs: test
+    runs-on: ubuntu-latest
+    if: (!cancelled())
+    permissions:
+      contents: read
+      issues: read
+      checks: write
+      pull-requests: write
+
+    steps:
+      # Codecov needs the sources to map the coverage report paths
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download test results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: test-results-*
+          path: test-results
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2
+        with:
+          files: |
+            test-results/**/*.trx
+      - name: Find coverage reports
+        id: coverage
+        run: echo "files=$(find test-results -name '*.cobertura.xml' | sort | paste -sd, -)" >> "$GITHUB_OUTPUT"
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
+        if: steps.coverage.outputs.files != ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ${{ steps.coverage.outputs.files }}
+          disable_search: true
