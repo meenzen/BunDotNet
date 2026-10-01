@@ -173,23 +173,26 @@ public static class BunInstaller
         var hash = exeBytes.Hash();
         var path = directory.GetVersionDirectory(hash);
         var filename = directory.GetExecutablePath(hash);
-        Directory.CreateDirectory(path);
-        await File.WriteAllBytesAsync(filename, exeBytes, CancellationToken.None);
-        if (!OperatingSystem.IsWindows())
+
+        // A refreshed canary build may be identical to the installed one. Skip writing it, the executable may be
+        // running and cannot be overwritten.
+        if (existingVersion?.Hash != hash || !File.Exists(filename))
         {
-            // Make executable
-            var fileInfo = new FileInfo(filename);
-            fileInfo.UnixFileMode |= UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
+            Directory.CreateDirectory(path);
+            await File.WriteAllBytesAsync(filename, exeBytes, CancellationToken.None);
+            if (!OperatingSystem.IsWindows())
+            {
+                // Make executable
+                var fileInfo = new FileInfo(filename);
+                fileInfo.UnixFileMode |=
+                    UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
+            }
         }
 
         // Replace a previously installed build of the same version, which happens when refreshing canary
         if (existingVersion is not null)
         {
             metadata.Versions.Remove(existingVersion);
-            if (existingVersion.Hash != hash)
-            {
-                TryDeleteVersionDirectory(directory, existingVersion.Hash);
-            }
         }
 
         // Write metadata
@@ -205,6 +208,13 @@ public static class BunInstaller
         metadata.Versions.Add(versionMetadata);
         metadata.UpdatedAt = DateTimeOffset.UtcNow;
         await SaveMetadataAsync(directory, metadata);
+
+        // Only delete the previous build once the metadata no longer references it. If saving fails, the previous
+        // build stays usable.
+        if (existingVersion is not null && existingVersion.Hash != hash)
+        {
+            TryDeleteVersionDirectory(directory, existingVersion.Hash);
+        }
 
         return new BunRuntime { Metadata = versionMetadata, ExecutablePath = filename };
     }
