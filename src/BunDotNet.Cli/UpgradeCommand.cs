@@ -9,7 +9,7 @@ namespace BunDotNet.Cli;
 public class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
 {
     [SuppressMessage("Minor Code Smell", "S2094:Classes should not be empty")]
-    public class Settings : PathSettings { }
+    public class Settings : GitHubSettings { }
 
     public override async Task<int> ExecuteAsync(
         CommandContext context,
@@ -18,7 +18,7 @@ public class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
     )
     {
         var runtime = await ProgressBar.RunAsync(onProgress =>
-            BunInstaller.UpgradeAsync(settings.Path, onProgress, cancellationToken)
+            BunInstaller.UpgradeAsync(settings.Path, onProgress, settings.GitHubToken, cancellationToken)
         );
         AnsiConsole.MarkupLine($"[green]Bun has been upgraded to version {runtime.Metadata.Version}.[/]");
         return 0;

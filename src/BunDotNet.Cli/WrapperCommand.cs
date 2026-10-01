@@ -7,7 +7,7 @@ namespace BunDotNet.Cli;
 [Description("Sets up Bun and ececutes the specified command.")]
 public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
 {
-    public class Settings : PathSettings
+    public class Settings : GitHubSettings
     {
         [CommandOption("-v|--version")]
         [Description("The Bun version to use.")]
@@ -61,10 +61,17 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
             true => await BunInstaller.InstallAsync(
                 version: _version,
                 path: settings.Path,
+                gitHubToken: settings.GitHubToken,
                 cancellationToken: cancellationToken
             ),
             false => await ProgressBar.RunAsync(onProgress =>
-                BunInstaller.InstallAsync(version: _version, path: settings.Path, onProgress, cancellationToken)
+                BunInstaller.InstallAsync(
+                    version: _version,
+                    path: settings.Path,
+                    onProgress,
+                    settings.GitHubToken,
+                    cancellationToken
+                )
             ),
         };
 

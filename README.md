@@ -69,6 +69,46 @@ Then run it like this:
 dotnet bun wrapper -- run script.ts
 ```
 
+## GitHub API Rate Limits
+
+BunDotNet uses the GitHub API to find the latest Bun release. Unauthenticated requests are limited to 60 per hour per
+IP address, which is easy to hit on shared CI runners. BunDotNet handles this for you:
+
+1. If a GitHub token is available, it is used to authenticate the API request, which raises the limit to 5000
+   requests per hour.
+2. If the token is rejected (e.g. it expired), the request is retried without it.
+3. If the API is still rate limited, the latest version is looked up on `https://github.com/oven-sh/bun/releases/latest`
+   instead, which is not subject to the API rate limit.
+
+Downloads of Bun itself are never rate limited by the API, and installing a specific version does not query the API at
+all. The token is only sent to `api.github.com` and does not need any permissions, since Bun releases are public.
+
+### Token Discovery
+
+The first token found is used, in this order:
+
+| Source                                   | Example                                                              |
+|------------------------------------------|----------------------------------------------------------------------|
+| Explicit parameter or CLI option         | `BunInstaller.InstallAsync(gitHubToken: "...")`, `--github-token ...` |
+| `BUNDOTNET_GITHUB_TOKEN` env variable    | A token used only by BunDotNet                                       |
+| `GH_TOKEN` env variable                  | The variable used by the GitHub CLI                                  |
+| `GITHUB_TOKEN` env variable              | The GitHub Actions workflow token                                    |
+| GitHub CLI login                         | Run `gh auth login` once, BunDotNet calls `gh auth token`            |
+
+Prefer environment variables over `--github-token`, since command line arguments are visible to other processes.
+
+Set `BUNDOTNET_GITHUB_AUTH=0` to disable automatic discovery. Only a token passed explicitly is used then.
+
+### GitHub Actions
+
+The workflow token is not exposed to processes by default, map it to an environment variable:
+
+```yaml
+- run: dotnet bun wrapper -- run script.ts
+  env:
+    GITHUB_TOKEN: ${{ github.token }}
+```
+
 ## Contributing
 
 Pull requests are welcome. Please use [Conventional Commits](https://www.conventionalcommits.org/) to keep
