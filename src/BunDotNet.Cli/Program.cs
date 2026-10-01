@@ -16,6 +16,8 @@ app.Configure(config =>
     config.AddExample("wrapper -- install");
     config.AddExample("wrapper -- run ./script.ts");
     config.AddExample("wrapper --version 1.3.6 -- run ./script.ts");
+    config.AddExample("wrapper --version canary -- run ./script.ts");
+    config.AddExample("upgrade --canary");
 });
 
 return await app.RunAsync(args);

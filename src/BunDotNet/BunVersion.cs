@@ -8,9 +8,29 @@ public sealed class BunVersion : IComparable<BunVersion>, IComparable, IEquatabl
     public required int Minor { get; init; }
     public required int Patch { get; init; }
 
-    public override string ToString() => $"{Major}.{Minor}.{Patch}";
+    /// <summary>
+    /// Whether this is the canary channel. Canary builds are rebuilt from the main branch and have no fixed version
+    /// number, so <see cref="Major"/>, <see cref="Minor"/> and <see cref="Patch"/> are meaningless for them.
+    /// </summary>
+    public bool IsCanary { get; init; }
 
-    public string ToGitTag() => $"bun-v{Major}.{Minor}.{Patch}";
+    private const string CanaryString = "canary";
+
+    /// <summary>
+    /// The latest canary build of Bun. Canary builds are refreshed every 24 hours.
+    /// </summary>
+    public static BunVersion Canary { get; } =
+        new()
+        {
+            Major = 0,
+            Minor = 0,
+            Patch = 0,
+            IsCanary = true,
+        };
+
+    public override string ToString() => IsCanary ? CanaryString : $"{Major}.{Minor}.{Patch}";
+
+    public string ToGitTag() => IsCanary ? CanaryString : $"bun-v{Major}.{Minor}.{Patch}";
 
     public static BunVersion? Parse(string? versionString)
     {
@@ -22,6 +42,11 @@ public sealed class BunVersion : IComparable<BunVersion>, IComparable, IEquatabl
         if (versionString.Equals("latest", StringComparison.InvariantCultureIgnoreCase))
         {
             return null;
+        }
+
+        if (versionString.Equals(CanaryString, StringComparison.InvariantCultureIgnoreCase))
+        {
+            return Canary;
         }
 
         // bun-v1.3.6
@@ -75,6 +100,12 @@ public sealed class BunVersion : IComparable<BunVersion>, IComparable, IEquatabl
             return 1;
         }
 
+        // canary sorts after all stable versions
+        if (IsCanary || other.IsCanary)
+        {
+            return IsCanary.CompareTo(other.IsCanary);
+        }
+
         var majorComparison = Major.CompareTo(other.Major);
         if (majorComparison != 0)
         {
@@ -123,7 +154,7 @@ public sealed class BunVersion : IComparable<BunVersion>, IComparable, IEquatabl
     private static int Compare(BunVersion? left, BunVersion? right) =>
         left?.CompareTo(right) ?? (right is null ? 0 : -1);
 
-    public override int GetHashCode() => HashCode.Combine(Major, Minor, Patch);
+    public override int GetHashCode() => IsCanary ? IsCanary.GetHashCode() : HashCode.Combine(Major, Minor, Patch);
 
     public override bool Equals(object? obj)
     {
@@ -145,6 +176,11 @@ public sealed class BunVersion : IComparable<BunVersion>, IComparable, IEquatabl
         if (ReferenceEquals(this, other))
         {
             return true;
+        }
+
+        if (IsCanary || other.IsCanary)
+        {
+            return IsCanary == other.IsCanary;
         }
 
         return Major == other.Major && Minor == other.Minor && Patch == other.Patch;

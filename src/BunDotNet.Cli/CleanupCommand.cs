@@ -6,7 +6,7 @@ using Spectre.Console.Cli;
 
 namespace BunDotNet.Cli;
 
-[Description("Removes all Bun versions except the latest one.")]
+[Description("Removes all Bun versions except the latest stable one and the canary build.")]
 public class CleanupCommand : AsyncCommand<CleanupCommand.Settings>
 {
     [SuppressMessage("Minor Code Smell", "S2094:Classes should not be empty")]

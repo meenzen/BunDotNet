@@ -27,6 +27,9 @@ var runtime = await BunInstaller.InstallAsync();
 // or install a specific version
 var runtime = await BunInstaller.InstallAsync(version: BunVersion.Parse("1.3.6"));
 
+// or install the latest canary build
+var runtime = await BunInstaller.InstallAsync(version: BunVersion.Canary);
+
 // then use the bun cli to run a script
 await runtime.RunAsync(args: ["run", "script.ts"], workingDirectory: Environment.CurrentDirectory);
 
@@ -51,6 +54,12 @@ Do you need a specific version of Bun? No problem:
 dotnet tool exec BunDotNet.Cli -- wrapper --version 1.3.6 -- run script.ts
 ```
 
+Want to try the latest canary build? Use the special version `canary`:
+
+```bash
+dotnet tool exec BunDotNet.Cli -- wrapper --version canary -- run script.ts
+```
+
 More commands and options can be found by running:
 
 ```bash
@@ -68,6 +77,20 @@ Then run it like this:
 ```bash
 dotnet bun wrapper -- run script.ts
 ```
+
+## Canary Builds
+
+Bun publishes [canary builds](https://github.com/oven-sh/bun/releases/tag/canary) from its main branch. They are
+supported as a separate release channel:
+
+- Use `BunVersion.Canary` in the library, or `--version canary` in the CLI. `BunVersion.Parse("canary")` works too.
+- An installed canary build is refreshed when it is older than 24 hours. If the refresh fails (e.g. offline), the
+  installed build is used.
+- Only one canary build is kept. Refreshing replaces the previous one.
+- `latest` (or no version) always resolves to the latest stable version, never to canary.
+- Cleanup keeps the latest stable version and the canary build.
+- Force a refresh with `BunInstaller.UpgradeCanaryAsync()` or `dotnet bun upgrade --canary`.
+- Canary builds are downloaded directly and do not use the GitHub API, so they are not affected by rate limits.
 
 ## GitHub API Rate Limits
 

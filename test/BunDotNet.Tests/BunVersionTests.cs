@@ -284,4 +284,100 @@ public class BunVersionTests
         await Assert.That(nullVersion <= null).IsTrue();
         await Assert.That(nullVersion < null).IsFalse();
     }
+
+    [Test]
+    [Arguments("canary")]
+    [Arguments("CANARY")]
+    [Arguments("Canary")]
+    public async Task Parse_Canary_ReturnsCanary(string input)
+    {
+        var version = BunVersion.Parse(input);
+
+        await Assert.That(version).IsEqualTo(BunVersion.Canary);
+        await Assert.That(version!.IsCanary).IsTrue();
+    }
+
+    [Test]
+    [Arguments("bun-canary")]
+    [Arguments("vcanary")]
+    [Arguments("canary-1.3.6")]
+    public async Task Parse_InvalidCanary_ThrowsFormatException(string input)
+    {
+        await Assert.That(() => BunVersion.Parse(input)).Throws<FormatException>();
+    }
+
+    [Test]
+    public async Task Canary_ToStringAndGitTag()
+    {
+        await Assert.That(BunVersion.Canary.ToString()).IsEqualTo("canary");
+        await Assert.That(BunVersion.Canary.ToGitTag()).IsEqualTo("canary");
+        await Assert.That(BunVersion.Parse(BunVersion.Canary.ToString())).IsEqualTo(BunVersion.Canary);
+    }
+
+    [Test]
+    public async Task Canary_IsNotEqualToStableVersion()
+    {
+        var stable = Version(0, 0, 0);
+
+        await Assert.That(BunVersion.Canary == stable).IsFalse();
+        await Assert.That(stable.Equals(BunVersion.Canary)).IsFalse();
+        await Assert.That(stable.IsCanary).IsFalse();
+    }
+
+    [Test]
+    public async Task Canary_EqualsOtherCanaryInstance()
+    {
+        var other = new BunVersion
+        {
+            Major = 1,
+            Minor = 2,
+            Patch = 3,
+            IsCanary = true,
+        };
+
+        await Assert.That(other == BunVersion.Canary).IsTrue();
+        await Assert.That(other.GetHashCode()).IsEqualTo(BunVersion.Canary.GetHashCode());
+        await Assert.That(other.CompareTo(BunVersion.Canary)).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Canary_SortsAfterStableVersions()
+    {
+        List<BunVersion> versions = [BunVersion.Canary, Version(99, 0, 0), Version(1, 3, 6)];
+
+        versions.Sort();
+
+        await Assert
+            .That(versions)
+            .IsEquivalentTo(
+                [Version(1, 3, 6), Version(99, 0, 0), BunVersion.Canary],
+                TUnit.Assertions.Enums.CollectionOrdering.Matching
+            );
+        await Assert.That(BunVersion.Canary > Version(99, 0, 0)).IsTrue();
+        await Assert.That(BunVersion.Canary > null).IsTrue();
+    }
+
+    [Test]
+    public async Task Json_RoundTripsCanaryAndStable()
+    {
+        var canary = System.Text.Json.JsonSerializer.Deserialize<BunVersion>(
+            System.Text.Json.JsonSerializer.Serialize(BunVersion.Canary)
+        );
+        var stable = System.Text.Json.JsonSerializer.Deserialize<BunVersion>(
+            System.Text.Json.JsonSerializer.Serialize(Version(1, 3, 6))
+        );
+
+        await Assert.That(canary).IsEqualTo(BunVersion.Canary);
+        await Assert.That(stable).IsEqualTo(Version(1, 3, 6));
+    }
+
+    [Test]
+    public async Task Json_MetadataWithoutCanaryField_IsStable()
+    {
+        // metadata written by older versions of BunDotNet has no IsCanary property
+        var version = System.Text.Json.JsonSerializer.Deserialize<BunVersion>("""{"Major":1,"Minor":3,"Patch":6}""");
+
+        await Assert.That(version).IsEqualTo(Version(1, 3, 6));
+        await Assert.That(version!.IsCanary).IsFalse();
+    }
 }
