@@ -79,26 +79,23 @@ jobs:
           dotnet test --no-build --project test/BunDotNet.Tests.EndToEnd --report-trx --coverage --coverage-output-format cobertura --coverage-output e2e.cobertura.xml --results-directory TestResults;
           e2e=$?;
           [ $unit -eq 0 ] && [ $e2e -eq 0 ]'
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          files: ./TestResults/unit.cobertura.xml,./TestResults/e2e.cobertura.xml
-          flags: ${{ matrix.name }}
       - name: Upload test results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: (!cancelled())
         with:
           name: test-results-${{ matrix.name }}
-          path: TestResults/*.trx
+          path: |
+            TestResults/*.trx
+            TestResults/*.cobertura.xml
 
-  publish-test-results:
+  report:
     needs: test
     runs-on: ubuntu-latest
     if: (!cancelled())
 
     steps:
+      # Codecov needs the sources to map the coverage report paths
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Download test results
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -109,3 +106,14 @@ jobs:
         with:
           files: |
             test-results/**/*.trx
+      - name: Find coverage reports
+        id: coverage
+        run: echo "files=$(find test-results -name '*.cobertura.xml' | sort | paste -sd, -)" >> "$GITHUB_OUTPUT"
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
+        if: steps.coverage.outputs.files != ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ${{ steps.coverage.outputs.files }}
+          disable_search: true
