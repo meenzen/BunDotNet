@@ -1,15 +1,19 @@
 using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace BunDotNet.Cli;
 
-[Description("Upgrades Bun to the latest version.")]
+[Description("Upgrades Bun to the latest version, or refreshes the canary build.")]
 public class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
 {
-    [SuppressMessage("Minor Code Smell", "S2094:Classes should not be empty")]
-    public class Settings : GitHubSettings { }
+    public class Settings : GitHubSettings
+    {
+        [CommandOption("--canary")]
+        [Description("Download the latest canary build instead of the latest stable version.")]
+        [DefaultValue(false)]
+        public bool Canary { get; init; }
+    }
 
     public override async Task<int> ExecuteAsync(
         CommandContext context,
@@ -18,9 +22,19 @@ public class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
     )
     {
         var runtime = await ProgressBar.RunAsync(onProgress =>
-            BunInstaller.UpgradeAsync(settings.Path, onProgress, settings.GitHubToken, cancellationToken)
+            settings.Canary switch
+            {
+                true => BunInstaller.UpgradeCanaryAsync(settings.Path, onProgress, cancellationToken),
+                false => BunInstaller.UpgradeAsync(settings.Path, onProgress, settings.GitHubToken, cancellationToken),
+            }
         );
-        AnsiConsole.MarkupLine($"[green]Bun has been upgraded to version {runtime.Metadata.Version}.[/]");
+        AnsiConsole.MarkupLine(
+            settings.Canary switch
+            {
+                true => "[green]Bun has been upgraded to the latest canary build.[/]",
+                false => $"[green]Bun has been upgraded to version {runtime.Metadata.Version}.[/]",
+            }
+        );
         return 0;
     }
 }

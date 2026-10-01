@@ -10,7 +10,9 @@ public class WrapperCommand : AsyncCommand<WrapperCommand.Settings>
     public class Settings : GitHubSettings
     {
         [CommandOption("-v|--version")]
-        [Description("The Bun version to use.")]
+        [Description(
+            "The Bun version to use. Use 'latest' for the latest stable version or 'canary' for the latest canary build."
+        )]
         [DefaultValue("latest")]
         public string Version { get; init; } = "latest";
 

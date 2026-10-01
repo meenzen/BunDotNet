@@ -20,6 +20,11 @@ public static class BunInstaller
         public required string DownloadUrl { get; init; }
         public required string Platform { get; init; }
         public required DateTimeOffset InstalledAt { get; init; }
+
+        /// <summary>
+        /// Canary builds are refreshed every 24 hours. Stable versions never change and are never outdated.
+        /// </summary>
+        public bool IsOutdated() => Version.IsCanary && InstalledAt.AddHours(24) < DateTimeOffset.UtcNow;
     }
 
     public class InstallMetadata
@@ -124,17 +129,23 @@ public static class BunInstaller
     /// <summary>
     /// Important: The caller must acquire the installation lock before calling this method.
     /// </summary>
+    /// <param name="version">The version to install.</param>
+    /// <param name="directory">The installation directory.</param>
+    /// <param name="onProgress">A callback to report download progress.</param>
+    /// <param name="force">Download the version even if it is already installed. Used to refresh canary builds.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
     private static async Task<BunRuntime> DownloadAndInstallAsync(
         BunVersion version,
         BunInstallDirectory directory,
         Action<DownloadProgress>? onProgress = null,
+        bool force = false,
         CancellationToken cancellationToken = default
     )
     {
-        // Check if the requested version was installed while waiting for the lock
+        // Check if the requested version was installed (or refreshed) while waiting for the lock
         var metadata = await LoadMetadataAsync(directory, cancellationToken);
         var existingVersion = metadata.Versions.FirstOrDefault(v => v.Version == version);
-        if (existingVersion is not null)
+        if (existingVersion is not null && !force && !existingVersion.IsOutdated())
         {
             return BunRuntime.FromMetadata(existingVersion, directory);
         }
@@ -171,6 +182,16 @@ public static class BunInstaller
             fileInfo.UnixFileMode |= UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
         }
 
+        // Replace a previously installed build of the same version, which happens when refreshing canary
+        if (existingVersion is not null)
+        {
+            metadata.Versions.Remove(existingVersion);
+            if (existingVersion.Hash != hash)
+            {
+                TryDeleteVersionDirectory(directory, existingVersion.Hash);
+            }
+        }
+
         // Write metadata
         var versionMetadata = new VersionMetadata
         {
@@ -188,10 +209,31 @@ public static class BunInstaller
         return new BunRuntime { Metadata = versionMetadata, ExecutablePath = filename };
     }
 
+    [SuppressMessage("Roslynator", "RCS1075:Avoid empty catch clause that catches System.Exception")]
+    private static void TryDeleteVersionDirectory(BunInstallDirectory directory, string hash)
+    {
+        try
+        {
+            var versionDirectory = directory.GetVersionDirectory(hash);
+            if (Directory.Exists(versionDirectory))
+            {
+                Directory.Delete(versionDirectory, recursive: true);
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // The old build may still be running (Windows locks running executables). It is no longer referenced by
+            // the metadata, so leaving it behind is harmless.
+        }
+    }
+
     /// <summary>
     /// Installs the Bun runtime.
     /// </summary>
-    /// <param name="version">The version of Bun to install. If null, the latest version will be used.</param>
+    /// <param name="version">
+    /// The version of Bun to install. If null, the latest stable version will be used. Use <see cref="BunVersion.Canary"/>
+    /// for the latest canary build.
+    /// </param>
     /// <param name="path">The path to install Bun to. If null, the default installation path will be used.</param>
     /// <param name="onProgress">A callback to report download progress.</param>
     /// <param name="gitHubToken">
@@ -201,7 +243,8 @@ public static class BunInstaller
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The installed Bun runtime.</returns>
     /// <remarks>
-    /// This is idempotent, calling this method multiple times with the same arguments will not reinstall Bun.
+    /// This is idempotent, calling this method multiple times with the same arguments will not reinstall Bun. The only
+    /// exception is <see cref="BunVersion.Canary"/>, which is refreshed if the installed build is older than 24 hours.
     /// </remarks>
     [SuppressMessage("Roslynator", "RCS1075:Avoid empty catch clause that catches System.Exception")]
     public static async Task<BunRuntime> InstallAsync(
@@ -228,10 +271,13 @@ public static class BunInstaller
             }
         }
 
-        // If no version is specified and there are existing versions, use the latest installed
-        if (version is null && metadata.Versions.Count > 0)
+        // If no version is specified and there are existing stable versions, use the latest installed
+        var latestInstalled = metadata
+            .Versions.Where(v => !v.Version.IsCanary)
+            .OrderByDescending(v => v.Version)
+            .FirstOrDefault();
+        if (version is null && latestInstalled is not null)
         {
-            var latestInstalled = metadata.Versions.OrderByDescending(v => v.Version).First();
             return BunRuntime.FromMetadata(latestInstalled, directory);
         }
 
@@ -240,18 +286,32 @@ public static class BunInstaller
 
         // Check if the requested version is already installed
         var existingVersion = metadata.Versions.FirstOrDefault(v => v.Version == version);
-        if (existingVersion is not null)
+        if (existingVersion is not null && !existingVersion.IsOutdated())
         {
             return BunRuntime.FromMetadata(existingVersion, directory);
         }
 
         // Try to install the requested version
         using var @lock = InstallLock.Acquire(directory);
-        return await DownloadAndInstallAsync(version, directory, onProgress, cancellationToken);
+        if (existingVersion is null)
+        {
+            return await DownloadAndInstallAsync(version, directory, onProgress, cancellationToken: cancellationToken);
+        }
+
+        // Refresh an outdated canary build
+        try
+        {
+            return await DownloadAndInstallAsync(version, directory, onProgress, cancellationToken: cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Fall back to the installed build. This allows offline usage.
+            return BunRuntime.FromMetadata(existingVersion, directory);
+        }
     }
 
     /// <summary>
-    /// Upgrades Bun to the latest version.
+    /// Upgrades Bun to the latest stable version.
     /// </summary>
     /// <param name="path">The path to the Bun installation. If null, the default installation path will be used.</param>
     /// <param name="onProgress">A callback to report download progress.</param>
@@ -273,6 +333,23 @@ public static class BunInstaller
     }
 
     /// <summary>
+    /// Downloads the latest canary build of Bun, replacing the installed canary build regardless of its age.
+    /// </summary>
+    /// <param name="path">The path to the Bun installation. If null, the default installation path will be used.</param>
+    /// <param name="onProgress">A callback to report download progress.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    public static async Task<BunRuntime> UpgradeCanaryAsync(
+        string? path = null,
+        Action<DownloadProgress>? onProgress = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var directory = BunInstallDirectory.Parse(path);
+        using var @lock = InstallLock.Acquire(directory);
+        return await DownloadAndInstallAsync(BunVersion.Canary, directory, onProgress, force: true, cancellationToken);
+    }
+
+    /// <summary>
     /// Lists all installed Bun versions.
     /// </summary>
     /// <param name="path">The path to the Bun installation. If null, the default installation path will be used.</param>
@@ -288,7 +365,7 @@ public static class BunInstaller
     }
 
     /// <summary>
-    /// Removes all Bun versions except the latest one.
+    /// Removes all Bun versions except the latest stable one and the canary build.
     /// </summary>
     /// <param name="path">The path to the Bun installation. If null, the default installation path will be used.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
@@ -300,7 +377,7 @@ public static class BunInstaller
         var directory = BunInstallDirectory.Parse(path);
         var metadata = await LoadMetadataAsync(directory, cancellationToken);
 
-        if (metadata.Versions.Count <= 1)
+        if (GetVersionsToRemove(metadata).Count == 0)
         {
             return new BunCleanupResult { RemovedVersions = [] };
         }
@@ -308,14 +385,12 @@ public static class BunInstaller
         using var @lock = InstallLock.Acquire(directory);
         // double-check after acquiring the lock
         metadata = await LoadMetadataAsync(directory, cancellationToken);
-        if (metadata.Versions.Count <= 1)
+        var versionsToRemove = GetVersionsToRemove(metadata);
+        if (versionsToRemove.Count == 0)
         {
             return new BunCleanupResult { RemovedVersions = [] };
         }
 
-        var versions = metadata.Versions.OrderByDescending(version => version.Version).ToList();
-        var versionToKeep = versions[0];
-        var versionsToRemove = versions.Skip(1).ToList();
         foreach (var version in versionsToRemove)
         {
             var versionDirectory = directory.GetVersionDirectory(version.Hash);
@@ -325,7 +400,7 @@ public static class BunInstaller
             }
         }
 
-        metadata.Versions = [versionToKeep];
+        metadata.Versions = metadata.Versions.Except(versionsToRemove).ToList();
         metadata.UpdatedAt = DateTimeOffset.UtcNow;
         await SaveMetadataAsync(directory, metadata);
 
@@ -334,4 +409,12 @@ public static class BunInstaller
             RemovedVersions = versionsToRemove.ConvertAll(version => BunRuntime.FromMetadata(version, directory)),
         };
     }
+
+    // all stable versions except the latest one, canary is kept
+    private static List<VersionMetadata> GetVersionsToRemove(InstallMetadata metadata) =>
+        metadata
+            .Versions.Where(version => !version.Version.IsCanary)
+            .OrderByDescending(version => version.Version)
+            .Skip(1)
+            .ToList();
 }
