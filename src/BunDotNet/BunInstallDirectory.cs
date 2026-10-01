@@ -22,8 +22,15 @@ public class BunInstallDirectory
         }
     }
 
+    // Without SpecialFolderOption.Create an empty string is returned if the folder does not exist yet, e.g. when
+    // ~/.local/share is missing in a fresh container
     public static BunInstallDirectory Default =>
-        new(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        new(
+            Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.Create
+            )
+        );
 
     public static BunInstallDirectory Parse(string? path) =>
         string.IsNullOrWhiteSpace(path) switch

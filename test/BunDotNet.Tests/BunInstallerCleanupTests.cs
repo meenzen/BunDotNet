@@ -36,7 +36,10 @@ public class BunInstallerCleanupTests
             UpdatedAt = DateTimeOffset.UtcNow,
             Versions = [.. versions],
         };
-        await File.WriteAllTextAsync(directory.GetMetadataJsonPath(), JsonSerializer.Serialize(metadata));
+        await File.WriteAllTextAsync(
+            directory.GetMetadataJsonPath(),
+            JsonSerializer.Serialize(metadata, BunJsonContext.Default.InstallMetadata)
+        );
     }
 
     [Test]
@@ -69,7 +72,7 @@ public class BunInstallerCleanupTests
 
         await Assert
             .That(result.RemovedVersions.Select(v => v.Metadata.Version.ToString()))
-            .IsEquivalentTo(["1.3.5", "1.3.4"]);
+            .IsEquivalentTo(["1.3.5", "1.3.4"], EqualityComparer<string>.Default);
         await Assert.That(File.Exists(directory.GetExecutablePath("old"))).IsFalse();
         await Assert.That(File.Exists(directory.GetExecutablePath("canary-build"))).IsTrue();
         await Assert.That(File.Exists(directory.GetExecutablePath("latest"))).IsTrue();
@@ -79,6 +82,7 @@ public class BunInstallerCleanupTests
             .That(versions.Select(v => v.Metadata.Version))
             .IsEquivalentTo(
                 [BunVersion.Parse("1.3.6")!, BunVersion.Canary],
+                EqualityComparer<BunVersion>.Default,
                 TUnit.Assertions.Enums.CollectionOrdering.Matching
             );
         Directory.Delete(directory.Base, recursive: true);
@@ -112,7 +116,7 @@ public class BunInstallerCleanupTests
 
         var hashes = BunInstaller.GetUnreferencedHashes(metadata, [Version("canary", "old")]);
 
-        await Assert.That(hashes).IsEquivalentTo(["old"]);
+        await Assert.That(hashes).IsEquivalentTo(["old"], EqualityComparer<string>.Default);
     }
 
     [Test]
@@ -145,6 +149,6 @@ public class BunInstallerCleanupTests
             [Version("1.3.4", "duplicate"), Version("1.3.5", "duplicate")]
         );
 
-        await Assert.That(hashes).IsEquivalentTo(["duplicate"]);
+        await Assert.That(hashes).IsEquivalentTo(["duplicate"], EqualityComparer<string>.Default);
     }
 }

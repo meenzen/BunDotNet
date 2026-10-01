@@ -2,9 +2,76 @@ name: Publish NuGet package
 
 on:
   workflow_dispatch:
+    inputs:
+      push:
+        description: Push the packages to NuGet. Disable to only build them, e.g. to publish manually.
+        type: boolean
+        default: true
+
+env:
+  HUSKY: 0
 
 jobs:
+  # Native AOT can only compile for the OS it runs on, so every platform package is built on a matching runner
+  pack-native:
+    name: pack (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # the oldest available Ubuntu, binaries require at least the glibc version they were built with
+          - rid: linux-x64
+            os: ubuntu-22.04
+          - rid: linux-arm64
+            os: ubuntu-22.04-arm
+          - rid: linux-musl-x64
+            os: ubuntu-latest
+            container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+          - rid: linux-musl-arm64
+            os: ubuntu-24.04-arm
+            container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+          - rid: win-x64
+            os: windows-latest
+          - rid: win-arm64
+            os: windows-11-arm
+          - rid: osx-x64
+            os: macos-15-intel
+          - rid: osx-arm64
+            os: macos-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        if: ${{ !matrix.container }}
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Install Native AOT prerequisites
+        if: ${{ !matrix.container && startsWith(matrix.rid, 'linux-') }}
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+      - name: Pack
+        if: ${{ !matrix.container }}
+        run: dotnet pack src/BunDotNet.Cli -c Release -r ${{ matrix.rid }} -o native /p:PublicRelease=true
+      # JavaScript actions do not run inside Alpine containers, so the musl packages are built via docker directly
+      - name: Pack (${{ matrix.container }})
+        if: ${{ matrix.container }}
+        run: >-
+          docker run --rm -e HUSKY=0 -v "$PWD:/src" -w /src ${{ matrix.container }}
+          sh -c 'apk add --no-cache git clang build-base zlib-dev
+          && git config --global --add safe.directory /src
+          && dotnet pack src/BunDotNet.Cli -c Release -r ${{ matrix.rid }} -o native /p:PublicRelease=true'
+      - name: Upload package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: native-${{ matrix.rid }}
+          path: native/BunDotNet.Cli.${{ matrix.rid }}.*.nupkg
+          if-no-files-found: error
+
   build-and-publish:
+    needs: pack-native
     permissions:
       id-token: write
     runs-on: ubuntu-latest
@@ -22,14 +89,51 @@ jobs:
         run: dotnet restore
       - name: Build
         run: dotnet build -c Release --no-restore /p:PublicRelease=true
+      - name: Pack CLI tool
+        run: |
+          # the top-level package, which points to the platform packages
+          dotnet pack src/BunDotNet.Cli -c Release -o cli /p:PublicRelease=true
+          # the framework-dependent fallback for platforms without a native package
+          dotnet pack src/BunDotNet.Cli -c Release -r any -o cli /p:PublishAot=false /p:PublicRelease=true
+      - name: Download native packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: native-*
+          path: cli
+          merge-multiple: true
+      - name: Collect packages
+        run: |
+          mkdir packages
+          cp artifacts/package/release/BunDotNet.[0-9]*.nupkg cli/BunDotNet.Cli.*.nupkg packages/
+          ls -la packages
+      - name: Upload packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: packages
+          path: packages/*.nupkg
+          if-no-files-found: error
 
       - name: NuGet login (OIDC → temp API key)
+        if: ${{ inputs.push }}
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         id: login
         with:
           user: meenzen
 
+      # the platform packages must be available before the top-level package, otherwise installs fail
       - name: NuGet push
+        if: ${{ inputs.push }}
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: dotnet nuget push "artifacts/package/release/*.nupkg" --api-key ${{steps.login.outputs.NUGET_API_KEY}} --skip-duplicate --source https://api.nuget.org/v3/index.json
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          push() {
+            dotnet nuget push "$1" --api-key "$NUGET_API_KEY" --skip-duplicate --source https://api.nuget.org/v3/index.json
+          }
+          push packages/BunDotNet.[0-9]*.nupkg
+          for package in packages/BunDotNet.Cli.*.nupkg; do
+            case "$(basename "$package")" in
+              BunDotNet.Cli.[0-9]*) pointer="$package" ;;
+              *) push "$package" ;;
+            esac
+          done
+          push "$pointer"

@@ -1,35 +1,41 @@
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
+using System.CommandLine;
 using Humanizer;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace BunDotNet.Cli;
 
-[Description("Removes all Bun versions except the latest stable one and the canary build.")]
-public class CleanupCommand : AsyncCommand<CleanupCommand.Settings>
+public static class CleanupCommand
 {
-    [SuppressMessage("Minor Code Smell", "S2094:Classes should not be empty")]
-    public class Settings : PathSettings { }
-
-    public override async Task<int> ExecuteAsync(
-        CommandContext context,
-        Settings settings,
-        CancellationToken cancellationToken
-    )
+    public static Command Create()
     {
-        await AnsiConsole
-            .Status()
-            .StartAsync(
-                "Cleaning up old Bun versions...",
-                async ctx =>
-                {
-                    var result = await BunInstaller.CleanupAsync(settings.Path, cancellationToken);
-                    var size = result.RemovedVersions.Sum(v => v.Metadata.SizeBytes);
-                    AnsiConsole.MarkupLine($"[green]Removed {result.RemovedVersions.Count} old Bun versions.[/]");
-                    AnsiConsole.WriteLine($"{size.Bytes().Humanize()} of disk space freed.");
-                }
-            );
-        return 0;
+        var path = CommonOptions.Path();
+        var command = new Command(
+            "cleanup",
+            "Removes all Bun versions except the latest stable one and the canary build."
+        )
+        {
+            path,
+        };
+        command.SetAction(
+            async (parseResult, cancellationToken) =>
+            {
+                await AnsiConsole
+                    .Status()
+                    .StartAsync(
+                        "Cleaning up old Bun versions...",
+                        async _ =>
+                        {
+                            var result = await BunInstaller.CleanupAsync(parseResult.GetValue(path), cancellationToken);
+                            var size = result.RemovedVersions.Sum(v => v.Metadata.SizeBytes);
+                            AnsiConsole.MarkupLine(
+                                $"[green]Removed {result.RemovedVersions.Count} old Bun versions.[/]"
+                            );
+                            AnsiConsole.WriteLine($"{size.Bytes().Humanize()} of disk space freed.");
+                        }
+                    );
+                return 0;
+            }
+        );
+        return command;
     }
 }

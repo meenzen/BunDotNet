@@ -54,6 +54,9 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: 10.0.x
+      - name: Install Native AOT prerequisites
+        if: ${{ !matrix.container && runner.os == 'Linux' }}
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
       - name: Restore dependencies
         if: ${{ !matrix.container }}
         run: dotnet restore
@@ -66,19 +69,49 @@ jobs:
       - name: E2E tests
         if: ${{ !matrix.container && !cancelled() }}
         run: dotnet test --no-build --project test/BunDotNet.Tests.EndToEnd --report-trx --coverage --coverage-output-format cobertura --coverage-output e2e.cobertura.xml --results-directory TestResults
+      # Coverage is not supported with Native AOT, so the tests run a second time as native executables
+      - name: Native AOT tests
+        if: ${{ !matrix.container && !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          dotnet publish test/BunDotNet.Tests -o aot/unit
+          dotnet publish test/BunDotNet.Tests.EndToEnd -o aot/e2e
+          ./aot/unit/BunDotNet.Tests --report-trx --report-trx-filename unit-aot.trx --results-directory TestResults
+          unit=$?
+          ./aot/e2e/BunDotNet.Tests.EndToEnd --report-trx --report-trx-filename e2e-aot.trx --results-directory TestResults
+          e2e=$?
+          [ $unit -eq 0 ] && [ $e2e -eq 0 ]
+      - name: Native AOT CLI
+        if: ${{ !matrix.container && !cancelled() }}
+        shell: bash
+        run: |
+          dotnet publish src/BunDotNet.Cli -o aot/cli
+          ./aot/cli/BunDotNet.Cli --help
+          ./aot/cli/BunDotNet.Cli wrapper --silent -- --version
       # JavaScript actions do not run inside Alpine containers, so the musl tests run via docker directly
       - name: Build and test (${{ matrix.container }})
         if: ${{ matrix.container }}
         run: >-
           docker run --rm -e HUSKY=0 -e GITHUB_TOKEN -v "$PWD:/src" -w /src ${{ matrix.container }}
-          sh -c 'apk add --no-cache git libstdc++ libgcc
+          sh -c 'apk add --no-cache git libstdc++ libgcc clang build-base zlib-dev
           && git config --global --add safe.directory /src
           && dotnet build
           && dotnet test --no-build --project test/BunDotNet.Tests --report-trx --coverage --coverage-output-format cobertura --coverage-output unit.cobertura.xml --results-directory TestResults;
           unit=$?;
           dotnet test --no-build --project test/BunDotNet.Tests.EndToEnd --report-trx --coverage --coverage-output-format cobertura --coverage-output e2e.cobertura.xml --results-directory TestResults;
           e2e=$?;
-          [ $unit -eq 0 ] && [ $e2e -eq 0 ]'
+          dotnet publish test/BunDotNet.Tests -o aot/unit
+          && ./aot/unit/BunDotNet.Tests --report-trx --report-trx-filename unit-aot.trx --results-directory TestResults;
+          unit_aot=$?;
+          dotnet publish test/BunDotNet.Tests.EndToEnd -o aot/e2e
+          && ./aot/e2e/BunDotNet.Tests.EndToEnd --report-trx --report-trx-filename e2e-aot.trx --results-directory TestResults;
+          e2e_aot=$?;
+          dotnet publish src/BunDotNet.Cli -o aot/cli
+          && ./aot/cli/BunDotNet.Cli --help
+          && ./aot/cli/BunDotNet.Cli wrapper --silent -- --version;
+          cli_aot=$?;
+          [ $unit -eq 0 ] && [ $e2e -eq 0 ] && [ $unit_aot -eq 0 ] && [ $e2e_aot -eq 0 ] && [ $cli_aot -eq 0 ]'
       - name: Upload test results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: (!cancelled())

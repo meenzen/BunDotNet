@@ -4,7 +4,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Description>A .NET CLI tool wrapper for the Bun JavaScript runtime.</Description>
   </PropertyGroup>
   <PropertyGroup>
@@ -12,13 +11,25 @@
     <ToolCommandName>bun</ToolCommandName>
     <RollForward>Major</RollForward>
   </PropertyGroup>
+  <!--
+    Native AOT: `dotnet pack` creates the top-level package, `dotnet pack -r <rid>` the native package for a platform
+    (on a matching OS). `dotnet pack -r any -p:PublishAot=false` creates the framework-dependent fallback.
+  -->
+  <PropertyGroup>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- The native debug symbols (.dbg) are larger than the executable, do not ship them in the tool packages -->
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+    <ToolPackageRuntimeIdentifiers>linux-x64;linux-arm64;linux-musl-x64;linux-musl-arm64;win-x64;win-arm64;osx-x64;osx-arm64;any</ToolPackageRuntimeIdentifiers>
+  </PropertyGroup>
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Humanizer.Core" />
     <PackageReference Include="Spectre.Console" />
-    <PackageReference Include="Spectre.Console.Cli" />
+    <PackageReference Include="System.CommandLine" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BunDotNet\BunDotNet.csproj" />

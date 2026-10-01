@@ -127,12 +127,14 @@ public class BunInstallerPipelineTests
             .That(versions.Select(v => v.Metadata.Version))
             .IsEquivalentTo(
                 [OlderVersion, _latest.Metadata.Version],
+                EqualityComparer<BunVersion>.Default,
                 TUnit.Assertions.Enums.CollectionOrdering.Matching
             );
         await Assert
             .That(versions.Select(v => v.ExecutablePath))
             .IsEquivalentTo(
                 [_older.ExecutablePath, _latest.ExecutablePath],
+                EqualityComparer<string>.Default,
                 TUnit.Assertions.Enums.CollectionOrdering.Matching
             );
     }
@@ -262,6 +264,7 @@ public class BunInstallerPipelineTests
             .That(versions.Select(v => v.Metadata.Version))
             .IsEquivalentTo(
                 [_latest.Metadata.Version, BunVersion.Canary],
+                EqualityComparer<BunVersion>.Default,
                 TUnit.Assertions.Enums.CollectionOrdering.Matching
             );
     }

@@ -1,23 +1,37 @@
-﻿using System.Globalization;
+using System.CommandLine;
+using System.CommandLine.Help;
+using System.Globalization;
 using BunDotNet.Cli;
-using Spectre.Console.Cli;
 
-var app = new CommandApp();
-app.Configure(config =>
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
+// RootCommand is named after the executable, but the tool is invoked as 'bun'
+var root = new Command(
+    "bun",
+    """
+    A .NET CLI tool wrapper for the Bun JavaScript runtime.
+
+    Examples:
+      bun wrapper -- install
+      bun wrapper -- run ./script.ts
+      bun wrapper --version 1.3.6 -- run ./script.ts
+      bun wrapper --version canary -- run ./script.ts
+      bun upgrade --canary
+    """
+)
 {
-    config.SetApplicationCulture(CultureInfo.InvariantCulture);
-    config.SetApplicationVersion(ThisAssembly.AssemblyInformationalVersion);
+    WrapperCommand.Create(),
+    UpgradeCommand.Create(),
+    VersionsCommand.Create(),
+    CleanupCommand.Create(),
+    new HelpOption(),
+    new VersionOption(),
+};
 
-    config.AddCommand<WrapperCommand>("wrapper");
-    config.AddCommand<UpgradeCommand>("upgrade");
-    config.AddCommand<VersionsCommand>("versions");
-    config.AddCommand<CleanupCommand>("cleanup");
+// Response files are disabled, Bun arguments like '@types/node' must be passed through unchanged
+var configuration = new ParserConfiguration { ResponseFileTokenReplacer = null };
 
-    config.AddExample("wrapper -- install");
-    config.AddExample("wrapper -- run ./script.ts");
-    config.AddExample("wrapper --version 1.3.6 -- run ./script.ts");
-    config.AddExample("wrapper --version canary -- run ./script.ts");
-    config.AddExample("upgrade --canary");
-});
-
-return await app.RunAsync(args);
+// Signals are handled by the commands, the wrapper must not exit or kill Bun while it is shutting down
+var invocation = new InvocationConfiguration { ProcessTerminationTimeout = null };
+return await root.Parse(args, configuration).InvokeAsync(invocation);
