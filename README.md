@@ -1,6 +1,7 @@
 [![GitHub](https://img.shields.io/github/license/meenzen/BunDotNet.svg)](https://github.com/meenzen/BunDotNet/blob/main/LICENSE)
-[![NuGet](https://img.shields.io/nuget/v/BunDotNet.svg)](https://www.nuget.org/packages/BunDotNet)
-[![NuGet](https://img.shields.io/nuget/dt/BunDotNet.svg)](https://www.nuget.org/packages/BunDotNet)
+[![NuGet Version](https://img.shields.io/nuget/v/BunDotNet.svg)](https://www.nuget.org/packages/BunDotNet)
+[![NuGet Downloads (CLI)](https://img.shields.io/nuget/dt/BunDotNet.Cli.svg?label=Downloads%20(CLI))](https://www.nuget.org/packages/BunDotNet.Cli)
+[![NuGet Downloads (Library)](https://img.shields.io/nuget/dt/BunDotNet.svg?label=Downloads%20(Library))](https://www.nuget.org/packages/BunDotNet)
 
 # BunDotNet
 
