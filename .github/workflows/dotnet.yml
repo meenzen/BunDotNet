@@ -65,7 +65,7 @@ jobs:
         run: dotnet test --no-build --project test/BunDotNet.Tests --report-trx --coverage --coverage-output-format cobertura --coverage-output unit.cobertura.xml --results-directory TestResults
       - name: E2E tests
         if: ${{ !matrix.container && !cancelled() }}
-        run: dotnet test --no-build --project test/BunDotNet.E2ETests --report-trx --coverage --coverage-output-format cobertura --coverage-output e2e.cobertura.xml --results-directory TestResults
+        run: dotnet test --no-build --project test/BunDotNet.Tests.EndToEnd --report-trx --coverage --coverage-output-format cobertura --coverage-output e2e.cobertura.xml --results-directory TestResults
       # JavaScript actions do not run inside Alpine containers, so the musl tests run via docker directly
       - name: Build and test (${{ matrix.container }})
         if: ${{ matrix.container }}
@@ -76,7 +76,7 @@ jobs:
           && dotnet build
           && dotnet test --no-build --project test/BunDotNet.Tests --report-trx --coverage --coverage-output-format cobertura --coverage-output unit.cobertura.xml --results-directory TestResults;
           unit=$?;
-          dotnet test --no-build --project test/BunDotNet.E2ETests --report-trx --coverage --coverage-output-format cobertura --coverage-output e2e.cobertura.xml --results-directory TestResults;
+          dotnet test --no-build --project test/BunDotNet.Tests.EndToEnd --report-trx --coverage --coverage-output-format cobertura --coverage-output e2e.cobertura.xml --results-directory TestResults;
           e2e=$?;
           [ $unit -eq 0 ] && [ $e2e -eq 0 ]'
       - name: Upload coverage reports to Codecov
