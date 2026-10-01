@@ -3,4 +3,7 @@
     <Project Path="src/BunDotNet.Cli/BunDotNet.Cli.csproj" />
     <Project Path="src/BunDotNet/BunDotNet.csproj" />
   </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/BunDotNet.Tests/BunDotNet.Tests.csproj" />
+  </Folder>
 </Solution>
