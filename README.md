@@ -2,6 +2,7 @@
 [![NuGet Version](https://img.shields.io/nuget/v/BunDotNet.svg)](https://www.nuget.org/packages/BunDotNet)
 [![NuGet Downloads (CLI)](https://img.shields.io/nuget/dt/BunDotNet.Cli.svg?label=Downloads%20(CLI))](https://www.nuget.org/packages/BunDotNet.Cli)
 [![NuGet Downloads (Library)](https://img.shields.io/nuget/dt/BunDotNet.svg?label=Downloads%20(Library))](https://www.nuget.org/packages/BunDotNet)
+[![codecov](https://codecov.io/gh/meenzen/BunDotNet/graph/badge.svg?token=90oSB72YQI)](https://codecov.io/gh/meenzen/BunDotNet)
 
 # BunDotNet
 
