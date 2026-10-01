@@ -14,9 +14,6 @@ env:
 
 permissions:
   contents: read
-  issues: read
-  checks: write
-  pull-requests: write
 
 jobs:
   test:
@@ -92,6 +89,11 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: (!cancelled())
+    permissions:
+      contents: read
+      issues: read
+      checks: write
+      pull-requests: write
 
     steps:
       # Codecov needs the sources to map the coverage report paths
