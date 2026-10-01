@@ -72,10 +72,12 @@ public static class BunInstaller
 
     private static async Task<BunVersion> GetLatestVersionAsync(
         BunInstallDirectory directory,
+        string? gitHubToken,
         CancellationToken cancellationToken
     )
     {
-        using var gitHub = new GitHubClient();
+        var token = await GitHubToken.ResolveAsync(gitHubToken, cancellationToken: cancellationToken);
+        using var gitHub = new GitHubClient(token);
         var tag = await gitHub.GetLatestReleaseTagAsync(
             DownloadUrls.GitHubOwner,
             DownloadUrls.GitHubRepo,
@@ -192,6 +194,10 @@ public static class BunInstaller
     /// <param name="version">The version of Bun to install. If null, the latest version will be used.</param>
     /// <param name="path">The path to install Bun to. If null, the default installation path will be used.</param>
     /// <param name="onProgress">A callback to report download progress.</param>
+    /// <param name="gitHubToken">
+    /// The token used to query the latest version from the GitHub API. If null, a token is discovered automatically
+    /// from the environment or the GitHub CLI, see the README for details.
+    /// </param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The installed Bun runtime.</returns>
     /// <remarks>
@@ -202,6 +208,7 @@ public static class BunInstaller
         BunVersion? version = null,
         string? path = null,
         Action<DownloadProgress>? onProgress = null,
+        string? gitHubToken = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -213,7 +220,7 @@ public static class BunInstaller
         {
             try
             {
-                version = await GetLatestVersionAsync(directory, cancellationToken);
+                version = await GetLatestVersionAsync(directory, gitHubToken, cancellationToken);
             }
             catch (Exception)
             {
@@ -229,7 +236,7 @@ public static class BunInstaller
         }
 
         // If no version is specified, fetch the latest version
-        version ??= await GetLatestVersionAsync(directory, cancellationToken);
+        version ??= await GetLatestVersionAsync(directory, gitHubToken, cancellationToken);
 
         // Check if the requested version is already installed
         var existingVersion = metadata.Versions.FirstOrDefault(v => v.Version == version);
@@ -248,16 +255,21 @@ public static class BunInstaller
     /// </summary>
     /// <param name="path">The path to the Bun installation. If null, the default installation path will be used.</param>
     /// <param name="onProgress">A callback to report download progress.</param>
+    /// <param name="gitHubToken">
+    /// The token used to query the latest version from the GitHub API. If null, a token is discovered automatically
+    /// from the environment or the GitHub CLI, see the README for details.
+    /// </param>
     /// <param name="cancellationToken">A cancellation token.</param>
     public static async Task<BunRuntime> UpgradeAsync(
         string? path = null,
         Action<DownloadProgress>? onProgress = null,
+        string? gitHubToken = null,
         CancellationToken cancellationToken = default
     )
     {
         var directory = BunInstallDirectory.Parse(path);
-        var latestVersion = await GetLatestVersionAsync(directory, cancellationToken);
-        return await InstallAsync(latestVersion, path, onProgress, cancellationToken);
+        var latestVersion = await GetLatestVersionAsync(directory, gitHubToken, cancellationToken);
+        return await InstallAsync(latestVersion, path, onProgress, gitHubToken, cancellationToken);
     }
 
     /// <summary>
