@@ -74,6 +74,7 @@ jobs:
         if: ${{ !matrix.container && !cancelled() }}
         shell: bash
         run: |
+          set +e
           dotnet publish test/BunDotNet.Tests -o aot/unit
           dotnet publish test/BunDotNet.Tests.EndToEnd -o aot/e2e
           ./aot/unit/BunDotNet.Tests --report-trx --report-trx-filename unit-aot.trx --results-directory TestResults

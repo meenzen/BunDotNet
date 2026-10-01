@@ -31,4 +31,7 @@ var root = new Command(
 
 // Response files are disabled, Bun arguments like '@types/node' must be passed through unchanged
 var configuration = new ParserConfiguration { ResponseFileTokenReplacer = null };
-return await root.Parse(args, configuration).InvokeAsync();
+
+// Signals are handled by the commands, the wrapper must not exit or kill Bun while it is shutting down
+var invocation = new InvocationConfiguration { ProcessTerminationTimeout = null };
+return await root.Parse(args, configuration).InvokeAsync(invocation);

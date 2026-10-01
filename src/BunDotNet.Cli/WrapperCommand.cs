@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Runtime.InteropServices;
 using Spectre.Console;
 
 namespace BunDotNet.Cli;
@@ -88,11 +89,37 @@ public static class WrapperCommand
                     AnsiConsole.WriteLine();
                 }
 
-                return await runtime.RunAsync(
-                    args: args,
-                    workingDirectory: Environment.CurrentDirectory,
-                    cancellationToken: cancellationToken
+                // A Ctrl+C in a terminal reaches Bun as well, ignore it here so Bun can shut down on its own terms
+                using var sigint = PosixSignalRegistration.Create(PosixSignal.SIGINT, context => context.Cancel = true);
+                using var sigquit = PosixSignalRegistration.Create(
+                    PosixSignal.SIGQUIT,
+                    context => context.Cancel = true
                 );
+
+                // SIGTERM is usually only sent to the wrapper (e.g. by docker stop), so Bun is stopped as well
+                using var terminate = new CancellationTokenSource();
+                using var sigterm = PosixSignalRegistration.Create(
+                    PosixSignal.SIGTERM,
+                    context =>
+                    {
+                        context.Cancel = true;
+                        terminate.Cancel();
+                    }
+                );
+
+                try
+                {
+                    return await runtime.RunAsync(
+                        args: args,
+                        workingDirectory: Environment.CurrentDirectory,
+                        cancellationToken: terminate.Token
+                    );
+                }
+                catch (OperationCanceledException) when (terminate.IsCancellationRequested)
+                {
+                    // 128 + SIGTERM, the exit code of a process terminated by the signal
+                    return 143;
+                }
             }
         );
         return command;
