@@ -68,6 +68,13 @@ public class BunVersionTests
     [Arguments("1.3.6-beta")]
     [Arguments("1..6.")]
     [Arguments("99999999999.0.0")]
+    [Arguments("1.-3.6")]
+    [Arguments("-1.3.6")]
+    [Arguments("+1.3.6")]
+    [Arguments("1. 3.6")]
+    [Arguments("1.3.6 ")]
+    [Arguments(" 1.3.6")]
+    [Arguments("1,000.3.6")]
     public async Task Parse_NonIntegerParts_ThrowsFormatException(string input)
     {
         await Assert.That(() => BunVersion.Parse(input)).Throws<FormatException>();
@@ -246,5 +253,35 @@ public class BunVersionTests
         var set = new HashSet<BunVersion> { Version(1, 3, 6), Version(1, 3, 6), Version(1, 3, 7) };
 
         await Assert.That(set.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task EqualityOperators_WithNull_DoNotThrow()
+    {
+        var version = Version(1, 3, 6);
+        BunVersion? nullVersion = null;
+
+        await Assert.That(nullVersion == version).IsFalse();
+        await Assert.That(version == nullVersion).IsFalse();
+        await Assert.That(nullVersion == null).IsTrue();
+        await Assert.That(nullVersion != version).IsTrue();
+        await Assert.That(version != nullVersion).IsTrue();
+        await Assert.That(nullVersion != null).IsFalse();
+    }
+
+    [Test]
+    public async Task ComparisonOperators_WithNull_TreatNullAsSmallest()
+    {
+        var version = Version(1, 3, 6);
+        BunVersion? nullVersion = null;
+
+        await Assert.That(nullVersion < version).IsTrue();
+        await Assert.That(nullVersion <= version).IsTrue();
+        await Assert.That(nullVersion > version).IsFalse();
+        await Assert.That(nullVersion >= version).IsFalse();
+        await Assert.That(version > nullVersion).IsTrue();
+        await Assert.That(version < nullVersion).IsFalse();
+        await Assert.That(nullVersion <= null).IsTrue();
+        await Assert.That(nullVersion < null).IsFalse();
     }
 }
