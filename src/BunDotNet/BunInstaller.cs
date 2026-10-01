@@ -211,12 +211,32 @@ public static class BunInstaller
 
         // Only delete the previous build once the metadata no longer references it. If saving fails, the previous
         // build stays usable.
-        if (existingVersion is not null && existingVersion.Hash != hash)
+        if (existingVersion is not null)
         {
-            TryDeleteVersionDirectory(directory, existingVersion.Hash);
+            foreach (var unreferencedHash in GetUnreferencedHashes(metadata, [existingVersion]))
+            {
+                TryDeleteVersionDirectory(directory, unreferencedHash);
+            }
         }
 
         return new BunRuntime { Metadata = versionMetadata, ExecutablePath = filename };
+    }
+
+    /// <summary>
+    /// Returns the hashes of the removed versions that no retained version in <paramref name="metadata"/> references.
+    /// Executables are stored by hash, so different versions can share a version directory.
+    /// </summary>
+    internal static List<string> GetUnreferencedHashes(
+        InstallMetadata metadata,
+        IEnumerable<VersionMetadata> removedVersions
+    )
+    {
+        var retainedHashes = metadata.Versions.Select(version => version.Hash).ToHashSet();
+        return removedVersions
+            .Select(version => version.Hash)
+            .Distinct()
+            .Where(h => !retainedHashes.Contains(h))
+            .ToList();
     }
 
     [SuppressMessage("Roslynator", "RCS1075:Avoid empty catch clause that catches System.Exception")]
@@ -401,16 +421,16 @@ public static class BunInstaller
             return new BunCleanupResult { RemovedVersions = [] };
         }
 
-        foreach (var version in versionsToRemove)
+        metadata.Versions = metadata.Versions.Except(versionsToRemove).ToList();
+        foreach (var hash in GetUnreferencedHashes(metadata, versionsToRemove))
         {
-            var versionDirectory = directory.GetVersionDirectory(version.Hash);
+            var versionDirectory = directory.GetVersionDirectory(hash);
             if (Directory.Exists(versionDirectory))
             {
                 Directory.Delete(versionDirectory, recursive: true);
             }
         }
 
-        metadata.Versions = metadata.Versions.Except(versionsToRemove).ToList();
         metadata.UpdatedAt = DateTimeOffset.UtcNow;
         await SaveMetadataAsync(directory, metadata);
 
