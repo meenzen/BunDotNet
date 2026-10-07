@@ -64,7 +64,7 @@ jobs:
           && git config --global --add safe.directory /src
           && dotnet pack src/BunDotNet.Cli -c Release -r ${{ matrix.rid }} -o native /p:PublicRelease=true'
       - name: Upload package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: native-${{ matrix.rid }}
           path: native/BunDotNet.Cli.${{ matrix.rid }}.*.nupkg
@@ -107,7 +107,7 @@ jobs:
           cp artifacts/package/release/BunDotNet.[0-9]*.nupkg cli/BunDotNet.Cli.*.nupkg packages/
           ls -la packages
       - name: Upload packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: packages
           path: packages/*.nupkg
