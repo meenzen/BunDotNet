@@ -32,10 +32,10 @@ jobs:
             os: ubuntu-24.04-arm
           - name: linux-musl-x64
             os: ubuntu-latest
-            container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+            container: mcr.microsoft.com/dotnet/sdk:11.0-alpine
           - name: linux-musl-arm64
             os: ubuntu-24.04-arm
-            container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+            container: mcr.microsoft.com/dotnet/sdk:11.0-alpine
           - name: windows-x64
             os: windows-latest
           - name: windows-arm64
@@ -51,9 +51,9 @@ jobs:
           fetch-depth: 0
       - name: Setup .NET
         if: ${{ !matrix.container }}
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 11.0.x
       - name: Install Native AOT prerequisites
         if: ${{ !matrix.container && runner.os == 'Linux' }}
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
@@ -140,7 +140,7 @@ jobs:
           pattern: test-results-*
           path: test-results
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@7622c5bf3d112a72ab4fa3951c2aa5723d8ab92d # v2
+        uses: EnricoMi/publish-unit-test-result-action@da5b7be67623cd59bbbd1a0ce4f022050a55605f # v2
         with:
           files: |
             test-results/**/*.trx
