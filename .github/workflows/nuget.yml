@@ -91,10 +91,8 @@ jobs:
         run: dotnet build -c Release --no-restore /p:PublicRelease=true
       - name: Pack CLI tool
         run: |
-          # the top-level package, which points to the platform packages
+          # the top-level package, which points to the platform packages, and the framework-dependent fallback
           dotnet pack src/BunDotNet.Cli -c Release -o cli /p:PublicRelease=true
-          # the framework-dependent fallback for platforms without a native package
-          dotnet pack src/BunDotNet.Cli -c Release -r any -o cli /p:PublishAot=false /p:PublicRelease=true
       - name: Download native packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
