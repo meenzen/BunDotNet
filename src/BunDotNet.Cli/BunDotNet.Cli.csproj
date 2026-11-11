@@ -12,17 +12,35 @@
     <RollForward>Major</RollForward>
   </PropertyGroup>
   <!--
-    Native AOT: `dotnet pack` creates the top-level package, `dotnet pack -r <rid>` the native package for a platform
-    (on a matching OS). `dotnet pack -r any -p:PublishAot=false` creates the framework-dependent fallback.
+    Native AOT: `dotnet pack` creates the top-level package and the framework-dependent fallback (`any`),
+    `dotnet pack -r <rid>` the native package for a platform (on a matching OS).
+
+    The tool targets the oldest supported .NET version only: RID-specific tool packages cannot contain multiple target
+    frameworks, the native packages do not need a runtime, and the fallback rolls forward to newer runtimes.
   -->
   <PropertyGroup>
     <PublishAot>true</PublishAot>
+    <!-- Restore the assets for the fallback package, which is packed by the top-level pack -->
+    <RuntimeIdentifiers>any</RuntimeIdentifiers>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <!-- The native debug symbols (.dbg) are larger than the executable, do not ship them in the tool packages -->
     <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
     <ToolPackageRuntimeIdentifiers>linux-x64;linux-arm64;linux-musl-x64;linux-musl-arm64;win-x64;win-arm64;osx-x64;osx-arm64;any</ToolPackageRuntimeIdentifiers>
   </PropertyGroup>
+  <!-- The framework-dependent fallback package for platforms without a native package -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'any'">
+    <PublishAot>false</PublishAot>
+  </PropertyGroup>
+  <!--
+    Since .NET 11, `dotnet pack` also packs every RID-specific package that can be built on the current host. The
+    native packages must be built on dedicated runners (see nuget.yml), so only the fallback package is packed here.
+  -->
+  <Target Name="_PackOnlyFallbackToolPackage" BeforeTargets="ComputeToolPackageRuntimeIdentifiersToPack">
+    <ItemGroup>
+      <ToolPackageRuntimeIdentifiersToPack Include="any" />
+    </ItemGroup>
+  </Target>
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>

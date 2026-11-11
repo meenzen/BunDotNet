@@ -27,10 +27,10 @@ jobs:
             os: ubuntu-22.04-arm
           - rid: linux-musl-x64
             os: ubuntu-latest
-            container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+            container: mcr.microsoft.com/dotnet/sdk:11.0-alpine
           - rid: linux-musl-arm64
             os: ubuntu-24.04-arm
-            container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+            container: mcr.microsoft.com/dotnet/sdk:11.0-alpine
           - rid: win-x64
             os: windows-latest
           - rid: win-arm64
@@ -46,9 +46,9 @@ jobs:
           fetch-depth: 0
       - name: Setup .NET
         if: ${{ !matrix.container }}
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 11.0.x
       - name: Install Native AOT prerequisites
         if: ${{ !matrix.container && startsWith(matrix.rid, 'linux-') }}
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
@@ -82,19 +82,17 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 11.0.x
       - name: Restore dependencies
         run: dotnet restore
       - name: Build
         run: dotnet build -c Release --no-restore /p:PublicRelease=true
       - name: Pack CLI tool
         run: |
-          # the top-level package, which points to the platform packages
+          # the top-level package, which points to the platform packages, and the framework-dependent fallback
           dotnet pack src/BunDotNet.Cli -c Release -o cli /p:PublicRelease=true
-          # the framework-dependent fallback for platforms without a native package
-          dotnet pack src/BunDotNet.Cli -c Release -r any -o cli /p:PublishAot=false /p:PublicRelease=true
       - name: Download native packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
